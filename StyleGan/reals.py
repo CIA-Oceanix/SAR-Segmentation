@@ -1,5 +1,5 @@
-from PIL import Image
 import numpy as np
+from PIL import Image
 
 im = Image.open('reals.png')
 imarray = np.array(im)

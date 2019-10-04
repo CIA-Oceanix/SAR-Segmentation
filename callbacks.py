@@ -4,7 +4,8 @@ import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 
 from Rignak_Misc.path import get_local_file
-from Rignak_DeepLearning.Autoencoders.plot_example import plot_example
+from Rignak_DeepLearning.Autoencoders.plot_example import plot_example as plot_autoencoder_example
+from Rignak_DeepLearning.Categorizer.plot_example import plot_example as plot_categorizer_example
 from Rignak_DeepLearning.Categorizer.confusion_matrix import compute_confusion_matrix, plot_confusion_matrix
 
 HISTORY_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'history'))
@@ -60,18 +61,38 @@ class HistoryCallback(Callback):
         plt.close()
 
 
-class ExampleCallback(Callback):
-    def __init__(self, example, root=EXAMPLE_CALLBACK_ROOT):
+class AutoencoderExampleCallback(Callback):
+    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT):
         super().__init__()
         self.root = root
-        self.example = example
+        self.generator = generator
 
     def on_train_begin(self, logs=None):
+        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
-        plot_example(self.example[0], self.model.predict(self.example[0]), groundtruth=self.example[1])
-        plt.savefig(os.path.join(self.root, f'{self.model.name}_{epoch}.png'))
+        example = next(self.generator)
+        plot_autoencoder_example(example[0], self.model.predict(example[0]), groundtruth=example[1])
+        plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
+        plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
+        plt.close()
+
+
+class ClassificationExampleCallback(Callback):
+    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT):
+        super().__init__()
+        self.root = root
+        self.generator = generator
+
+    def on_train_begin(self, logs=None):
+        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
+        self.on_epoch_end(0, logs=logs)
+
+    def on_epoch_end(self, epoch, logs=None):
+        example = next(self.generator)
+        plot_categorizer_example(example[0], self.model.predict(example[0]), self.model.labels)
+        plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
 
@@ -83,13 +104,15 @@ class ConfusionCallback(Callback):
         self.generator = generator
         self.labels = labels
 
+
     def on_train_begin(self, logs=None):
+        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
         confusion_matrix = compute_confusion_matrix(self.model, self.generator, canals=len(self.labels))
         plot_confusion_matrix(confusion_matrix, labels=self.labels)
 
-        plt.savefig(os.path.join(self.root, f'{self.model.name}_{epoch}.png'))
+        plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()

@@ -1,7 +1,9 @@
+import numpy as np
 import matplotlib.pyplot as plt
 
 
 def plot_example(input_, prediction, groundtruth=None, min_value=0, max_value=1):
+    print(np.min(prediction), np.max(prediction))
     input_ = input_[:, :, :, ::-1]
     prediction = prediction[:, :, :, ::-1]
     if groundtruth is None:

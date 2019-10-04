@@ -7,14 +7,13 @@
 
 """Main entry point for training StyleGAN and ProGAN networks."""
 
-import sys
 import copy
-import dnnlib
-from dnnlib import EasyDict
+import sys
 
 import config
+import dnnlib
+from dnnlib import EasyDict
 from metrics import metric_base
-
 
 # choose the dataset
 dataset_name                 = sys.argv[1]

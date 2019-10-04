@@ -8,10 +8,10 @@
 """Miscellaneous helper utils for Tensorflow."""
 
 import os
+from typing import Any, Iterable, List, Union
+
 import numpy as np
 import tensorflow as tf
-
-from typing import Any, Iterable, List, Union
 
 TfExpression = Union[tf.Tensor, tf.Variable, tf.Operation]
 """A type that represents a valid Tensorflow expression."""

@@ -2,11 +2,9 @@ import os
 import numpy as np
 from PIL import Image
 import cv2
-import scipy
+import scipy.misc
 
 from keras.preprocessing import image as image_utils
-
-from Rignak_Misc.path import get_local_file
 
 CANALS = 3
 
@@ -39,19 +37,16 @@ def read(filename, input_shape):
     return im
 
 
-def get_dataset_roots(type_, dataset='.'):
-    if type_ == 'categorizer' or type_ == 'saliency':
-        train_root = get_local_file(__file__, os.path.join('datasets', 'categorizer', dataset, 'train'))
-        val_root = get_local_file(__file__, os.path.join('datasets', 'categorizer', dataset, 'val'))
-    elif type_ == 'autoencoder':
-        train_root = get_local_file(__file__, os.path.join('datasets', type_, dataset, 'train'))
-        val_root = get_local_file(__file__, os.path.join('datasets', type_, dataset, 'val'))
-    elif type_ == 'stylegan':
-        val_root = train_root = get_local_file(__file__, os.path.join('datasets', 'stylegan', dataset))
-    elif type_ == 'cyclegan':
-        val_root = train_root = get_local_file(__file__, os.path.join('datasets', 'cyclegan', dataset))
-
-
+def get_dataset_roots(task, dataset='.'):
+    if task in ['categorizer', 'saliency']:
+        train_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'train')
+        val_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'val')
+    elif task in ['autoencoder', 'style_transfer']:
+        train_root = os.path.join('E:', 'datasets', task, dataset, 'train')
+        val_root =os.path.join('E:', 'datasets', task, dataset, 'val')
+    elif task in ['stylegan', 'cyclegan']:
+        train_root = os.path.join('E:', 'datasets', task, dataset)
+        val_root = os.path.join('E:', 'datasets', task, dataset)
     else:
         raise ValueError
     return train_root, val_root

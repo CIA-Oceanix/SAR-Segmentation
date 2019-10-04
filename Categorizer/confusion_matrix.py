@@ -38,9 +38,10 @@ def plot_confusion_matrix(confusion_matrix, labels=None):
     ax.set_ylabel('True labels')
     ax.set_title('Confusion Matrix')
     if labels is not None:
-        ax.xaxis.set_ticklabels(labels[::-1])
+        ax.xaxis.set_ticklabels(labels[::-1], rotation=30)
         ax.yaxis.set_ticklabels(labels, rotation=0)
 
     # https://stackoverflow.com/questions/56942670/matplotlib-seaborn-first-and-last-row-cut-in-half-of-heatmap-plot
     ax.set_ylim(confusion_matrix.shape[0], 0)
     ax.set_xlim(confusion_matrix.shape[0], 0)
+    plt.tight_layout()

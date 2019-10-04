@@ -7,13 +7,13 @@
 
 """Main entry point for training StyleGAN and ProGAN networks."""
 
-import dnnlib
-from dnnlib import EasyDict
-import dnnlib.tflib as tflib
-
 import config
+import dnnlib
+import dnnlib.tflib as tflib
+from dnnlib import EasyDict
 from metrics import metric_base
 from training import misc
+
 
 #----------------------------------------------------------------------------
 

@@ -7,19 +7,19 @@
 
 """Tool for creating multi-resolution TFRecords datasets for StyleGAN and ProGAN."""
 
+import argparse
+import glob
 # pylint: disable=too-many-lines
 import os
 import sys
-import glob
-import argparse
 import threading
-import six.moves.queue as Queue  # pylint: disable=import-error
 import traceback
-import numpy as np
-import tensorflow as tf
+
 import PIL.Image
 import dnnlib.tflib as tflib
-
+import numpy as np
+import six.moves.queue as Queue  # pylint: disable=import-error
+import tensorflow as tf
 from training import dataset
 
 

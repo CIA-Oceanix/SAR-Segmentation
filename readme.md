@@ -9,10 +9,12 @@
       - [Categorizer (image2tag)](#categorization-on-images)
       - [Speech Recognition (sound2tag)](#speech-recognition-specifics)
   - [Optical Character Recognition](#optical-character-recognition)
-  - [Reinforcement Learning](#)
+  - [Reinforcement Learning](#reinforcement-learning)
   - GANs
-      - [StyleGan](#)
       - [CycleGan](#)
+      - [StyleGan](#)
+  - Legacy
+      - [Hierarchical Categorizer](#)
 - [Dataset location](#)
 
 ## Requirements
@@ -26,6 +28,7 @@
 - scipy
 - PIL
 - datetime
+- fire
 - matplotlib
 - seaborn
 - tensorflow
@@ -36,6 +39,7 @@
 
 - pygame
 - skimage
+- Rignak_Games
 
 ###### Speech recognition specifics
 
@@ -72,21 +76,34 @@
 Autoencoders and categorizer revolve around the *train.py*
 
 ````shell
->>> python train.py {model_type} {task} {dataset} {output_prefix}
+>>> python train.py --help
+NAME
+    train.py - Train a network
+
+SYNOPSIS
+    train.py TASK DATASET <flags>
+    
+DESCRIPTION
+    Train a network
+    
+POSITIONAL ARGUMENTS
+    TASK
+        the type of neural network, either "autoencoder", "saliency", "mnist", "categorizer", "style_transfer" or "speech_categorization"
+    DATASET
+        name of the folder containing the images
+
+FLAGS
+    --batch_size=BATCH_SIZE
+        size of each batch
 ````
 
-- **{task}** is either "autoencoder" or "categorizer" ;
-
-- **{model_type}** can be "unet" or "flat" for the task "autoencoder" and "flat" for "categorizer" ;
-
-- **{dataset}** is the name of a directory inside the *./datasets* folder. See [dataset location](#) for the specifics of the filesystem architecture.
 
 ### Autoencoders
 
 ###### Inputs
 
 ````shell
->>> python train.py unet autoencoder fav-rignak name=fav-rignak
+>>> python train.py autoencoder fav-rignak
 ````
 
 ###### Outputs
@@ -107,7 +124,7 @@ Knowing only a classification of the training set, we try to draw the segmentati
 ###### Inputs
 
 ````shell
->>> python train.py flat saliency open_eyes name=open_eyes
+>>> python train.py saliency open_eye
 ````
 
 Supports dataset with two and three class.
@@ -122,6 +139,7 @@ Supports dataset with two and three class.
 ###### Example
 
 ![](_outputs/example/open_eyes.png)
+
 ![](_outputs/example/eye_color.png)
 
 
@@ -130,7 +148,7 @@ Supports dataset with two and three class.
 ###### Inputs
 
 ````shell
->>> python train.py flat categorizer waifu name=waifu
+>>> python train.py categorizer waifu
 ````
 
 ###### Outputs
@@ -163,23 +181,160 @@ Using the spectrogram of the sound, we convert the .wav into .png. Thus, we can 
 ![](SpeechRecognition/datasets/japanese/keshigomu/1.png)
 ![](SpeechRecognition/datasets/japanese/keshigomu/2.png)
 
+The images will then be categorized as a classical single label problem.
+
+### Optical Character Recognition
+
+First we train a segmenter to get thumbnails of each word.
+
+````shell
+>>> python train.py style_transfer text_segmentation
+````
+
+![](_outputs/example/text_segmentation.png)
+
+Then, we apply the segmentation:
+
+```
+> python OCR/apply_segmentation.py --help
+NAME
+    apply_segmentation.py - Use a trained segmentation model to create the thumbnail of each segmented element.
+    
+SYNOPSIS
+    apply_segmentation.py MODEL_FILENAME <flags>
+    
+DESCRIPTION
+    Use a trained segmentation model to create the thumbnail of each segmented element.
+    
+POSITIONAL ARGUMENTS
+    MODEL_FILENAME
+        name of the file containing a model trained for the segmentation
+        
+FLAGS
+    --input_folder=INPUT_FOLDER
+        folder containing the images to segment
+    --output_folder=OUTPUT_FOLDER
+        folder which will contain the thumbnails
+```
+
+
+    >>> python OCR/apply_segmentation.py _outputs/models/text_segmentation.h5
+    
+![](OCR/res/segmentation.png)
+
+
+Then we train a categorizer. Due to lack of data, we try to use MNIST
+
+````shell
+>>> python train.py categorizer mnist
+````
+
+![](_outputs/confusion/mnist.png)
+
+The we apply the model to the thumbnails :
+
+````shell
+````
+
+![](OCR/_outputs/OCR_example.png)
+
+### Reinforcement learning
 
 ###### Inputs
 
 ````shell
->>> cd SpeechRecognition
->>> python train.py japanese
+>>> cd ReinforcementLearning
+>>> python Launcher.py Asteroid 
 ````
 
 ###### Outputs
 
-- **_outputs\summary\japanese.txt**, the summary of the neuron network ;
-- **_outputs\models\japanese.h5**, the pickled model ;
-- **_outputs\history\japanese.png**, the evolution of the loss during the training on both training and validation sets ;
-- **_outputs\confusion\japanese.png**, confusion of the model during the training on the validation set.
+![](ReinforcementLearning/plot.png)
 
-###### Examples
 
-![](_outputs/confusion/japanese.png)
+### CycleGan
 
-### Optical Character Recognition
+Cloned from https://github.com/eriklindernoren/Keras-GAN/tree/master/cyclegan
+
+###### Inputs
+
+````shell
+>>> cd CycleGan
+>>> python cyclegan.py
+````
+
+###### Outputs
+
+![](CycleGan/output/Lisara_example.png)
+
+### StyleGan
+
+Cloned from https://github.com/NVlabs/stylegan
+
+###### Inputs
+
+````shell
+>>> cd StyleGan
+>>> python train.py
+````
+
+Once a model is trained, we can generate pictures with :
+
+````shell
+>>> python run.py --help
+NAME
+    run.py - Create images from a given model
+SYNOPSIS
+    run.py <flags>
+DESCRIPTION
+    Create images from a given model
+FLAGS
+    --model_filename=MODEL_FILENAME
+        name of the model to use
+    --truncation_psi=TRUNCATION_PSI
+        originality factor, close to 0 means less originality
+    --result_root=RESULT_ROOT
+        name of the folder to contain the output
+    --number_of_pictures=NUMBER_OF_PICTURES
+        number of picture to generate
+````
+
+We can also do interpolation videos (ffmpeg must be installed) :
+
+````shell
+>>> python video.py --help
+NAME
+    video.py - Create an interpolation video
+    
+SYNOPSIS
+    video.py <flags>
+    
+DESCRIPTION
+    Create an interpolation video
+    
+FLAGS
+    --model_filename=MODEL_FILENAME
+        name of the file containing the models
+    --truncation_psi=TRUNCATION_PSI
+        originality factor, closer to 0 means less original
+    --result_root=RESULT_ROOT
+        name of the folder to contains the output
+    --duration=DURATION
+        length, in seconds, of the video to create
+    --grid_dim=GRID_DIM
+        number of thumbnails on each row and columns of the video
+    --fps=FPS
+        frame per seconds
+    --image_zoom=IMAGE_ZOOM
+        zoom applied on the output
+````
+
+###### Outputs
+
+Groundtruth :
+![](StyleGan/results/velvet_reals.png)
+
+Results :
+![](StyleGan/results/velvet_fakes.png)
+
+That's what happen when we train a StyleGan with not enough of a GPU.

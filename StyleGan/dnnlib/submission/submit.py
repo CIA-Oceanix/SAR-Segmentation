@@ -8,7 +8,6 @@
 """Submit a function to be run either locally or in a computing cluster."""
 
 import copy
-import io
 import os
 import pathlib
 import pickle
@@ -18,13 +17,9 @@ import re
 import shutil
 import time
 import traceback
-
-import zipfile
-
 from enum import Enum
 
 from .. import util
-from ..util import EasyDict
 
 
 class SubmitTarget(Enum):

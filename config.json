@@ -1,0 +1,119 @@
+{
+  "autoencoder": {
+    "TASK": "autoencoder",
+    "INPUT_SHAPE": [
+      256,
+      256,
+      3
+    ],
+    "CONV_LAYERS": [
+      8,
+      16,
+      32,
+      64
+    ],
+    "OUTPUT_CANALS": 3,
+    "ACTIVATION": "relu",
+    "LAST_ACTIVATION": "sigmoid",
+    "NAME": "DEFAULT_UNET_NAME"
+  },
+  "saliency": {
+    "TASK": "saliency",
+    "INPUT_SHAPE": [
+      256,
+      256,
+      3
+    ],
+    "CONV_LAYERS": [
+      4,
+      8,
+      16,
+      32
+    ],
+    "OUTPUT_CANALS": 3,
+    "ACTIVATION": "relu",
+    "LAST_ACTIVATION": "sigmoid",
+    "NAME": "DEFAULT_SALIENCY_NAME"
+  },
+  "mnist": {
+    "TASK": "categorizer",
+    "INPUT_SHAPE": [
+      32,
+      32,
+      3
+    ],
+    "CONV_LAYERS": [
+      4,
+      8,
+      16,
+      32
+    ],
+    "DENSE_LAYERS": [
+      32,
+      16
+    ],
+    "OUTPUT_CANALS": 3,
+    "ACTIVATION": "relu",
+    "LAST_ACTIVATION": "softmax",
+    "NAME": "DEFAULT_MNIST_NAME"
+  },
+  "categorizer": {
+    "TASK": "categorizer",
+    "INPUT_SHAPE": [
+      256,
+      256,
+      3
+    ],
+    "CONV_LAYERS": [
+      32,
+      64,
+      128,
+      256,
+      256
+    ],
+    "DENSE_LAYERS": [
+      256,
+      256
+    ],
+    "OUTPUT_CANALS": 3,
+    "ACTIVATION": "relu",
+    "LAST_ACTIVATION": "softmax",
+    "NAME": "DEFAULT_CATEGORIZER_NAME"
+  },
+  "style_transfer": {
+    "TASK": "style_transfer",
+    "INPUT_SHAPE": [
+      256,
+      256,
+      3
+    ],
+    "CONV_LAYERS": [
+      8,
+      16,
+      32,
+      64
+    ],
+    "OUTPUT_CANALS": 3,
+    "ACTIVATION": "relu",
+    "LAST_ACTIVATION": "sigmoid",
+    "NAME": "DEFAULT_UNET_NAME",
+    "SCALING": 1
+  },
+  "speech_recognition": {
+    "TASK": "categorizer",
+    "INPUT_SHAPE": [
+      128,
+      128,
+      1
+    ],
+    "CONV_LAYERS": [
+      8,
+      16,
+      16,
+      32
+    ],
+    "ACTIVATION": "relu",
+    "LAST_ACTIVATION": "softmax",
+    "NAME": "DEFAULT_CATEGORIZER_NAME"
+  }
+}

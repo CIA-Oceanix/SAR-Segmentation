@@ -1,6 +1,7 @@
 import numpy as np
 import cv2
 import os
+import scipy.misc
 
 from Rignak_DeepLearning.data import read
 
@@ -45,9 +46,9 @@ def categorizer_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
 def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE):
     folders = os.listdir(root)
     if len(folders) == 2:
-        colors = np.array([[255], [0]])
+        colors = np.array([[0], [255]])
     elif len(folders) == 3:
-        colors = np.array([[0, 0, 255], [0, 255, 0], [255, 0, 0]])
+        colors = np.array([[255, 0, 0], [0, 255, 0], [0, 0, 255]])
     else:
         raise ValueError
     output_shape = (input_shape[0], input_shape[1], colors.shape[-1])
@@ -109,30 +110,40 @@ def augment_generator(generator, zoom=ZOOM, rotation=ROTATION, noise_function=No
 
 
 def fake_generator(dataset, batch_size=BATCH_SIZE):
+    inputs = np.stack(dataset[:, 0])
+    outputs = np.stack(dataset[:, 1])
     i = 0
-    inputs = dataset[0]
-    outputs = dataset[1]
     while True:
         batch_input = np.zeros((batch_size, inputs.shape[1], inputs.shape[2], inputs.shape[3]))
         batch_output = np.zeros((batch_size, outputs.shape[1]))
         for j in range(batch_size):
-            batch_input[i] = inputs[i % inputs.shape[0]]
-            batch_output[i] = outputs[i % outputs.shape[0]]
+            batch_input[j] = inputs[i % inputs.shape[0]]
+            batch_output[j] = outputs[i % outputs.shape[0]]
             i += 1
         yield batch_input, batch_output
 
 
-def thumbnail_generator(dataset, batch_size=BATCH_SIZE, shape=INPUT_SHAPE):
+def thumbnail_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, input_root='input', output_root='output',
+                        scaling=1):
+    input_filenames = [os.path.join(root, input_root, filename)
+                       for filename in os.listdir(os.path.join(root, input_root)) if 'face' not in filename]
+    output_filenames = [os.path.join(root, output_root, filename)
+                        for filename in os.listdir(os.path.join(root, output_root)) if 'face' not in filename]
     while True:
-        batch_input = np.zeros((batch_size, shape[0], shape[1], shape[2]))
-        batch_output = np.zeros((batch_size, shape[0], shape[1], shape[2]))
+        batch_input = np.zeros((batch_size, input_shape[0], input_shape[1], input_shape[2]))
+        batch_output = np.zeros((batch_size, input_shape[0], input_shape[1], input_shape[2]))
 
-        elements = np.random.choice(dataset, size=batch_size)
-
-        for i, (input_, output) in enumerate(elements):
-            x_offset = np.random.randint(0, input_.shape[0] - shape[0])
-            y_offset = np.random.randint(0, input_.shape[1] - shape[1])
-            batch_input[i] = input_[x_offset:x_offset + shape[0], y_offset:y_offset + shape[1]]
-            batch_output[i] = output[x_offset:x_offset + shape[0], y_offset:y_offset + shape[1]]
+        filenames_index = np.random.randint(0, len(input_filenames), size=batch_size)
+        for i, filename_index in enumerate(filenames_index):
+            input_ = cv2.imread(input_filenames[filename_index])
+            output = cv2.imread(output_filenames[filename_index])
+            if scaling != 1 and input_.shape[0] * scaling > input_shape[0] \
+                    and input_.shape[1] * scaling > input_shape[1]:
+                input_ = scipy.misc.imresize(input_, (int(input_.shape[0] * scaling), int(input_.shape[1] * scaling)))
+                output = scipy.misc.imresize(output, (int(output.shape[0] * scaling), int(output.shape[1] * scaling)))
+            x_offset = np.random.randint(0, input_.shape[0] - input_shape[0])
+            y_offset = np.random.randint(0, input_.shape[1] - input_shape[1])
+            batch_input[i] = input_[x_offset:x_offset + input_shape[0], y_offset:y_offset + input_shape[1]]
+            batch_output[i] = output[x_offset:x_offset + input_shape[0], y_offset:y_offset + input_shape[1]]
 
         yield batch_input, batch_output

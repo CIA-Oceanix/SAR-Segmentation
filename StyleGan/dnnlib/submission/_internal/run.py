@@ -19,6 +19,7 @@ import sys
 # PYTHONPATH should have been set so that the run_dir/src is in it
 import dnnlib
 
+
 def main():
     if not len(sys.argv) >= 4:
         raise RuntimeError("This script needs three arguments: run_dir, task_name and host_name!")

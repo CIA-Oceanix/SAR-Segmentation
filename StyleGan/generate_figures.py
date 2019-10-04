@@ -9,11 +9,12 @@
 
 import os
 import pickle
-import numpy as np
+
 import PIL.Image
+import config
 import dnnlib
 import dnnlib.tflib as tflib
-import config
+import numpy as np
 
 #----------------------------------------------------------------------------
 # Helpers for loading and using pre-trained generators.
