@@ -79,14 +79,14 @@ def normalize_generator(generator, normalization_function, apply_on_output=False
         yield batch_input, batch_output
 
 
-def augment_generator(generator, zoom=ZOOM, rotation=ROTATION, noise_function=None, apply_on_output=False):
+def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_function=None, apply_on_output=False):
     while True:
         batch_input, batch_output = next(generator)
         input_shape = batch_input.shape[1:3]
 
-        angles = (np.random.random(batch_input.shape[0]) - 0.5) * rotation
-        zooms = np.random.random(batch_input.shape[0]) * zoom + 1
-        h_flips = np.random.randint(0, 2, batch_input.shape[0])
+        angles = (np.random.random(size=batch_input.shape[0]) - 0.5) * rotation
+        zooms = np.random.random(size=batch_input.shape[0]) * zoom_factor + 1
+        h_flips = np.random.randint(0, 2, size=batch_input.shape[0])
 
         for i, (input_, output, angle, zoom, h_flip) in \
                 enumerate(zip(batch_input, batch_output, angles, zooms, h_flips)):
@@ -126,9 +126,9 @@ def fake_generator(dataset, batch_size=BATCH_SIZE):
 def thumbnail_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, input_root='input', output_root='output',
                         scaling=1):
     input_filenames = [os.path.join(root, input_root, filename)
-                       for filename in os.listdir(os.path.join(root, input_root)) if 'face' not in filename]
+                       for filename in os.listdir(os.path.join(root, input_root))]
     output_filenames = [os.path.join(root, output_root, filename)
-                        for filename in os.listdir(os.path.join(root, output_root)) if 'face' not in filename]
+                        for filename in os.listdir(os.path.join(root, output_root))]
     while True:
         batch_input = np.zeros((batch_size, input_shape[0], input_shape[1], input_shape[2]))
         batch_output = np.zeros((batch_size, input_shape[0], input_shape[1], input_shape[2]))
