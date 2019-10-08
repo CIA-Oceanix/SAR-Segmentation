@@ -11,11 +11,16 @@
   - [Optical Character Recognition](#optical-character-recognition)
   - [Reinforcement Learning](#reinforcement-learning)
   - GANs
-      - [CycleGan](#)
-      - [StyleGan](#)
+      - [CycleGan](#cyclegan)
+      - [StyleGan](#stylegan)
   - Legacy
-      - [Hierarchical Categorizer](#)
-- [Dataset location](#)
+      - [Hierarchical Categorizer](#hierarchical-categorizer)
+- [Dataset location](#dataset-location)
+- [Callbacks](#callbacks)
+    - [callbacks.HistoryCallback](#callbackshistorycallback)
+    - [callbacks.AutoencoderExampleCallback](#callbacksautoencoderexamplecallback)
+    - [callbacks.ClassificationExampleCallback](#callbacksclassificationexamplecallback)
+    - [callbacks.ConfusionCallback](#callbacksconfusioncallback)
 
 ## Requirements
 
@@ -161,7 +166,9 @@ Supports dataset with two and three class.
 
 ###### Example
 
-![](_outputs/confusion/waifu.png)
+![](_outputs/confusion/waifu_current.png)
+
+![](_outputs/example/waifu_current.png)
 
 ### Categorization on sound
 
@@ -338,3 +345,68 @@ Results :
 ![](StyleGan/results/velvet_fakes.png)
 
 That's what happen when we train a StyleGan with not enough of a GPU.
+
+## Hierarchical Categorizer
+
+This program is heavily outdated (being one of the survivors of the massive refactoring done in September 2019).
+
+The idea is to regroup labels in classes. We first classify on class (example: black_clothes/red_clothes) then on labels (example: Batman/Black Panther, Iron Man/Spyder Man).
+
+The concept is described in length in the following [here](Categorizer/Legacy_HierarchicalCategorizer.pdf)
+
+## Dataset location
+
+Since we use multiprocessing, and by doing so multiple simultaneous file access, the datasets have to be put on a SSD.
+
+The folders should be like :
+- autoencoder
+    - _{dataset_name}_
+        - train
+        - val
+- categorizer
+    - _{dataset_name}_ 
+        -  train
+            - _{label_1}_
+            - _{label_2}_
+            - ...
+        - val
+            - _{label_1}_
+            - _{label_2}_
+            - ...
+- cyclegan
+    - _{dataset_name}_
+        - trainA
+        - trainB
+        - valA
+        - valB
+- style_transfer
+    - _{dataset_name}_
+        - train
+            - input
+            - output
+        - val
+            - input
+            - output
+- stylegan
+    * _{dataset_name}_
+
+
+## Callbacks
+
+If there is one thing useful in this repository, it's the callbacks. There are create at the end of each epochs and give information about the running training.
+
+###### callbacks.HistoryCallback
+
+![](_outputs/history/waifu.png)
+
+###### callbacks.AutoencoderExampleCallback
+
+![](_outputs/example/open_eyes.png)
+
+###### callbacks.ClassificationExampleCallback
+
+![](_outputs/example/waifu_current.png)
+
+###### callbacks.ConfusionCallback
+
+![](_outputs/confusion/waifu_current.png)

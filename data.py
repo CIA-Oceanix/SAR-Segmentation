@@ -31,7 +31,8 @@ def data_on_folder(folder, size, canals=CANALS):
 def read(filename, input_shape):
     im = cv2.imread(filename)
     if im is None:
-        print(filename)
+        print(f"Error when reading {filename}")
+        return np.zeros(input_shape)
     if im.shape != input_shape:
         im = scipy.misc.imresize(im, input_shape[:2])
     return im
