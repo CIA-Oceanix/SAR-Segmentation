@@ -12,6 +12,10 @@ from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCal
 from Rignak_DeepLearning.Autoencoders.flat import import_model as import_flat_model
 from Rignak_DeepLearning.Autoencoders.unet import import_model as import_unet_model
 from Rignak_DeepLearning.Categorizer.flat import import_model as import_categorizer
+from Rignak_DeepLearning.BiOutput.flat import import_model as import_bimode
+from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator, \
+    normalize_generator as bimode_normalize, augment_generator as bimode_augment
+from Rignak_DeepLearning.BiOutput.callbacks import ExampleCallback as BimodeExampleCallback
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
     thumbnail_generator, normalize_generator as normalize, augment_generator as augment
 from Rignak_DeepLearning.config import get_config
@@ -46,7 +50,7 @@ def main(task, dataset, batch_size=BATCH_SIZE):
     task = config['TASK']
     normalization_function = intensity_normalization()[0]
     noise_function = get_uniform_noise_function()
-    name = dataset
+    name = f'{dataset}_{task}'
 
     train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
     if task == 'saliency':
@@ -74,7 +78,6 @@ def main(task, dataset, batch_size=BATCH_SIZE):
         callback_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
         labels = os.listdir(train_folder)
         output_canals = len(labels)
-        print('here', output_canals)
         model = import_categorizer(output_canals, config=config, name=name)
         model.labels = labels
 
@@ -87,6 +90,15 @@ def main(task, dataset, batch_size=BATCH_SIZE):
                                                  scaling=config['SCALING'])
 
         model = import_unet_model(name=name, config=config)
+
+    elif task == 'bimode':
+        train_generator = bimode_generator(train_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
+        val_generator = bimode_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
+        callback_generator = bimode_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
+
+        labels = os.listdir(train_folder)
+        model = import_bimode(config['OUTPUT_CANALS'], labels, config=config, name=name)
+        model.labels = labels
 
     else:
         raise NameError
@@ -102,6 +114,20 @@ def main(task, dataset, batch_size=BATCH_SIZE):
         callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
                      AutoencoderExampleCallback(callback_generator)]
+    elif task == 'bimode':
+        train_generator = bimode_normalize(
+            bimode_augment(train_generator, noise_function=noise_function, apply_on_output=True),
+            normalization_function, apply_on_output=True)
+        val_generator = bimode_normalize(
+            bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True),
+            normalization_function, apply_on_output=True)
+        callback_generator = bimode_normalize(
+            bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True),
+            normalization_function, apply_on_output=True)
+        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
+                     HistoryCallback(),
+                     BimodeExampleCallback(callback_generator),
+                     ConfusionCallback(callback_generator, labels)]
     else:
         train_generator = normalize(augment(train_generator, noise_function=noise_function, apply_on_output=False),
                                     normalization_function, apply_on_output=False)

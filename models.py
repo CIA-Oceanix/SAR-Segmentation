@@ -20,7 +20,8 @@ def convolution_block(layer, neurons, kernel_size=KERNEL_SIZE, activation=ACTIVA
 
 def deconvolution_block(layer, previous_conv, neurons, kernel_size=KERNEL_SIZE, activation=ACTIVATION):
     block = Conv2DTranspose(neurons, kernel_size, strides=(2, 2), padding='same')(layer)
-    block = concatenate([block, previous_conv], axis=3)
+    if previous_conv is not None:
+        block = concatenate([block, previous_conv], axis=3)
     block = Conv2D(neurons, kernel_size, activation=activation, padding='same')(block)
     block = Conv2D(neurons, kernel_size, activation=activation, padding='same')(block)
     block = Conv2D(neurons, kernel_size, activation=activation, padding='same')(block)

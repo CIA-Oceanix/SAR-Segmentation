@@ -91,17 +91,23 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
         for i, (input_, output, angle, zoom, h_flip) in \
                 enumerate(zip(batch_input, batch_output, angles, zooms, h_flips)):
             if h_flip:
-                input_ = input_[:, :-1]
+                input_ = input_[:, ::-1]
                 if apply_on_output:
-                    output = output[:, :-1]
+                    output = output[:, ::-1]
 
             rotation_matrix = cv2.getRotationMatrix2D((input_shape[0] // 2, input_shape[1] // 2), angle, zoom)
             batch_input[i] = cv2.warpAffine(input_, rotation_matrix, input_shape[:2])
             if apply_on_output:
-                if batch_output.shape[-1] == 1:
-                    batch_output[i, :, :, 0] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
+                if batch_output.shape[1] == 2:
+                    if batch_output.shape[-1] == 1:
+                        batch_output[i, 1, :, :, 0] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
+                    else:
+                        batch_output[i, 1] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
                 else:
-                    batch_output[i] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
+                    if batch_output.shape[-1] == 1:
+                        batch_output[i, :, :, 0] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
+                    else:
+                        batch_output[i] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
 
         if noise_function is not None:
             batch_input = noise_function(batch_input)

@@ -20,8 +20,7 @@ def thumbnail(filename, size):
 
 
 def data_on_folder(folder, size, canals=CANALS):
-    filenames = os.listdir(folder)
-    filenames = [os.path.join(folder, filename) for filename in filenames]
+    filenames = [os.path.join(folder, filename) for filename in os.listdir(folder)]
     array = np.zeros((len(filenames), size[0], size[1], canals))
     for i, filename in enumerate(filenames):
         array[i] = thumbnail(filename, size)
@@ -39,7 +38,7 @@ def read(filename, input_shape):
 
 
 def get_dataset_roots(task, dataset='.'):
-    if task in ['categorizer', 'saliency']:
+    if task in ['categorizer', 'saliency', 'bimode']:
         train_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'train')
         val_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'val')
     elif task in ['autoencoder', 'style_transfer']:

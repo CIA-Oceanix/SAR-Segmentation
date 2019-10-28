@@ -15,7 +15,13 @@ def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
     while i < limit:
         inputs, groundtruths = next(generator)
         predictions = model.predict(inputs)
+        if len(predictions)==2: # added to support the bimode
+            predictions = predictions[0]
+            groundtruths = groundtruths[0]
         for groundtruth, prediction in zip(groundtruths, predictions):
+            if groundtruth.shape[0] == 2:
+                groundtruth = groundtruth[0]
+                prediction = prediction[0]
             groundtruth_arg = np.argmax(groundtruth)
             prediction_arg = np.argmax(prediction)
             confusion_matrix[groundtruth_arg, prediction_arg] += 1
