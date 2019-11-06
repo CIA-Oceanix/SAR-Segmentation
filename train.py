@@ -16,9 +16,11 @@ from Rignak_DeepLearning.BiOutput.flat import import_model as import_bimode
 from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator, \
     normalize_generator as bimode_normalize, augment_generator as bimode_augment
 from Rignak_DeepLearning.BiOutput.callbacks import ExampleCallback as BimodeExampleCallback
+from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHistoryCallback
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
     thumbnail_generator, normalize_generator as normalize, augment_generator as augment
 from Rignak_DeepLearning.config import get_config
+from Rignak_DeepLearning.growing_dataset import GrowingGenerator
 
 """
 >>> python train.py autoencoder fav-rignak 
@@ -27,12 +29,13 @@ from Rignak_DeepLearning.config import get_config
 >>> python train.py categorizer waifu
 >>> python train.py mnist mnist batch_size=256
 >>> python train.py style_transfer colorization 
+>>> python train.py bimode waifu 
+>>> python train.py growing waifu 
 """
 
 BATCH_SIZE = 8
-
-STEPS_PER_EPOCH = 10000
-VALIDATION_STEPS = 1000
+STEPS_PER_EPOCH = 2000
+VALIDATION_STEPS = 200
 EPOCHS = 1000
 
 
@@ -100,6 +103,16 @@ def main(task, dataset, batch_size=BATCH_SIZE):
         model = import_bimode(config['OUTPUT_CANALS'], labels, config=config, name=name)
         model.labels = labels
 
+    elif task == 'growing':
+        labels = os.listdir(train_folder)
+        output_canals = len(labels)
+        model = import_categorizer(output_canals, config=config, name=name)
+        model._make_predict_function()
+        model.labels = labels
+        train_generator = GrowingGenerator(model, train_folder, steps=STEPS_PER_EPOCH,batch_size=batch_size,
+                                           input_shape=config['INPUT_SHAPE'])
+        val_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
+        callback_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
     else:
         raise NameError
 
@@ -125,9 +138,11 @@ def main(task, dataset, batch_size=BATCH_SIZE):
             bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True),
             normalization_function, apply_on_output=True)
         callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
-                     HistoryCallback(),
+                     BimodeHistoryCallback(),
                      BimodeExampleCallback(callback_generator),
                      ConfusionCallback(callback_generator, labels)]
+    elif task == 'growing':
+        callbacks = []
     else:
         train_generator = normalize(augment(train_generator, noise_function=noise_function, apply_on_output=False),
                                     normalization_function, apply_on_output=False)

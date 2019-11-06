@@ -3,6 +3,7 @@ import numpy as np
 from PIL import Image
 import cv2
 import scipy.misc
+from tqdm import tqdm
 
 from keras.preprocessing import image as image_utils
 
@@ -38,7 +39,7 @@ def read(filename, input_shape):
 
 
 def get_dataset_roots(task, dataset='.'):
-    if task in ['categorizer', 'saliency', 'bimode']:
+    if task in ['categorizer', 'saliency', 'bimode', 'growing']:
         train_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'train')
         val_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'val')
     elif task in ['autoencoder', 'style_transfer']:
@@ -50,3 +51,32 @@ def get_dataset_roots(task, dataset='.'):
     else:
         raise ValueError
     return train_root, val_root
+
+def load_dataset(dataset_name, input_shape):
+    train_root, val_root = get_dataset_roots('categorizer', dataset_name)
+    dataset_classes = os.listdir(train_root)
+
+    x_train_filenames = [os.path.join(train_root, dataset_class, filename)
+                         for dataset_class in dataset_classes
+                         for filename in os.listdir(os.path.join(train_root, dataset_class))]
+    #y_train = np.zeros((len(x_train_filenames), len(dataset_classes)))
+    x_train = np.zeros((len(x_train_filenames), input_shape[0], input_shape[1], input_shape[2]))
+    y_train = np.zeros((len(x_train_filenames)))
+    print('Load training_dataset:', len(x_train_filenames))
+    for i, x_train_filename in tqdm(enumerate(x_train_filenames)):
+        x_train[i] = read(x_train_filename, input_shape)
+        y_train[i] = dataset_classes.index(os.path.split(os.path.split(x_train_filename)[0])[-1])
+        #y_train[i, dataset_classes.index(os.path.split(os.path.split(x_train_filename)[0])[-1])] = 1
+
+    x_val_filenames = [os.path.join(val_root, dataset_class, filename)
+                         for dataset_class in dataset_classes
+                         for filename in os.listdir(os.path.join(val_root, dataset_class))]
+    #y_val = np.zeros((len(x_val_filenames), len(dataset_classes)))
+    x_val = np.zeros((len(x_val_filenames), input_shape[0], input_shape[1], input_shape[2]))
+    y_val = np.zeros((len(x_val_filenames)))
+    print('Load validation_dataset:', len(x_val_filenames))
+    for i, x_val_filename in tqdm(enumerate(x_val_filenames)):
+        x_val[i] = read(x_val_filename, input_shape)
+        y_val[i] = dataset_classes.index(os.path.split(os.path.split(x_val_filename)[0])[-1])
+        #y_val[i, dataset_classes.index(os.path.split(os.path.split(x_val_filename)[0])[-1])] = 1
+    return (x_train, y_train), (x_val, y_val), dataset_classes

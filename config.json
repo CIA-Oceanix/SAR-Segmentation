@@ -137,5 +137,28 @@
     "OUTPUT_CANALS": 3,
     "ACTIVATION": "relu",
     "NAME": "DEFAULT_BIMODE_NAME"
+  },
+  "growing": {
+    "TASK": "growing",
+    "INPUT_SHAPE": [
+      256,
+      256,
+      3
+    ],
+    "CONV_LAYERS": [
+      32,
+      64,
+      128,
+      256,
+      256
+    ],
+    "DENSE_LAYERS": [
+      256,
+      256
+    ],
+    "OUTPUT_CANALS": 3,
+    "ACTIVATION": "relu",
+    "LAST_ACTIVATION": "softmax",
+    "NAME": "DEFAULT_GROWING_NAME"
   }
 }
