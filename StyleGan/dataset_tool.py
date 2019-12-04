@@ -14,6 +14,7 @@ import os
 import sys
 import threading
 import traceback
+from tqdm import trange
 
 import PIL.Image
 import dnnlib.tflib as tflib
@@ -66,8 +67,8 @@ class TFRecordExporter:
         return order
 
     def add_image(self, img):
-        if self.print_progress and self.cur_images % self.progress_interval == 0:
-            print('%d / %d\r' % (self.cur_images, self.expected_images))  # , end='', flush=True)
+        # if self.print_progress and self.cur_images % self.progress_interval == 0:
+        #     print('%d / %d\r' % (self.cur_images, self.expected_images))  # , end='', flush=True)
         if self.shape is None:
             self.shape = img.shape
             self.resolution_log2 = int(np.log2(self.shape[1]))
@@ -523,7 +524,7 @@ def create_celeba(tfrecord_dir, celeba_dir, cx=89, cy=121):
 
 def create_from_images(tfrecord_dir, image_dir, shuffle):
     print('Loading images from "%s"' % image_dir)
-    image_filenames = sorted(glob.glob(os.path.join(image_dir, '*')))
+    image_filenames = sorted(glob.glob(os.path.join(image_dir, '*', '*', '*')))
     if len(image_filenames) == 0:
         error('No input images found')
 
@@ -539,7 +540,7 @@ def create_from_images(tfrecord_dir, image_dir, shuffle):
 
     with TFRecordExporter(tfrecord_dir, len(image_filenames)) as tfr:
         order = tfr.choose_shuffled_order() if shuffle else np.arange(len(image_filenames))
-        for idx in range(order.size):
+        for idx in trange(order.size):
             img = np.asarray(PIL.Image.open(image_filenames[order[idx]]))
             if channels == 1:
                 img = img[np.newaxis, :, :]  # HW => CHW

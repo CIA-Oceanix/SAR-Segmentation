@@ -7,16 +7,17 @@
 
 """Helper wrapper for a Tensorflow optimizer."""
 
-from collections import OrderedDict
-from typing import List, Union
-
 import numpy as np
 import tensorflow as tf
 
+from collections import OrderedDict
+from typing import List, Union
+
 from . import autosummary
 from . import tfutil
-from .tfutil import TfExpression, TfExpressionEx
 from .. import util
+
+from .tfutil import TfExpression, TfExpressionEx
 
 try:
     # TensorFlow 1.13

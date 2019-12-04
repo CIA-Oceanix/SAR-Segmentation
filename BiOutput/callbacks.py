@@ -39,8 +39,8 @@ class HistoryCallback(Callback):
         self.val_categorizer_loss.append(logs.get('val_categorizer_block_loss'))
         self.val_decoder_loss.append(logs.get('val_decoder_block_loss'))
 
-        self.accuracy.append(logs.get('decoder_block_acc'))
-        self.val_accuracy.append(logs.get('val_decoder_block_acc'))
+        self.accuracy.append(logs.get('categorizer_block_acc'))
+        self.val_accuracy.append(logs.get('val_categorizer_block_acc'))
 
         plt.subplot(1, 2, 2)
         plt.plot(self.x, self.accuracy, label="Training")

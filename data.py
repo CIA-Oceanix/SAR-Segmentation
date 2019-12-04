@@ -39,7 +39,7 @@ def read(filename, input_shape):
 
 
 def get_dataset_roots(task, dataset='.'):
-    if task in ['categorizer', 'saliency', 'bimode', 'growing']:
+    if task in ['categorizer', 'saliency', 'bimode', 'growing', 'inceptionV3']:
         train_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'train')
         val_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'val')
     elif task in ['autoencoder', 'style_transfer']:

@@ -160,5 +160,38 @@
     "ACTIVATION": "relu",
     "LAST_ACTIVATION": "softmax",
     "NAME": "DEFAULT_GROWING_NAME"
+  },
+  "inceptionV3": {
+    "TASK": "inceptionV3",
+    "IMAGENET": false,
+    "INPUT_SHAPE": [
+      256,
+      256,
+      3
+    ],
+    "OUTPUT_CANALS": 3,
+    "NAME": "DEFAULT_INCEPTION_NAME"
+  },
+  "inceptionV3_fine-tuning": {
+    "TASK": "inceptionV3",
+    "IMAGENET": "fine-tuning",
+    "INPUT_SHAPE": [
+      224,
+      224,
+      3
+    ],
+    "OUTPUT_CANALS": 3,
+    "NAME": "DEFAULT_INCEPTION_NAME"
+  },
+  "inceptionV3_transfer-learning": {
+    "TASK": "inceptionV3",
+    "IMAGENET": "transfer-learning",
+    "INPUT_SHAPE": [
+      224,
+      224,
+      3
+    ],
+    "OUTPUT_CANALS": 3,
+    "NAME": "DEFAULT_INCEPTION_NAME"
   }
 }

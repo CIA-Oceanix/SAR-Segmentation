@@ -1,4 +1,3 @@
-import sys
 import os
 import fire
 
@@ -12,6 +11,7 @@ from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCal
 from Rignak_DeepLearning.Autoencoders.flat import import_model as import_flat_model
 from Rignak_DeepLearning.Autoencoders.unet import import_model as import_unet_model
 from Rignak_DeepLearning.Categorizer.flat import import_model as import_categorizer
+from Rignak_DeepLearning.Categorizer.inception import import_model_v3 as InceptionV3
 from Rignak_DeepLearning.BiOutput.flat import import_model as import_bimode
 from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator, \
     normalize_generator as bimode_normalize, augment_generator as bimode_augment
@@ -74,14 +74,17 @@ def main(task, dataset, batch_size=BATCH_SIZE):
 
         model = import_unet_model(name=name, config=config)
 
-    elif task == 'categorizer':
+    elif task == 'categorizer' or task == "inceptionV3":
         train_generator = categorizer_generator(train_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
         val_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
 
         callback_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
         labels = os.listdir(train_folder)
         output_canals = len(labels)
-        model = import_categorizer(output_canals, config=config, name=name)
+        if task == "categorizer":
+            model = import_categorizer(output_canals, config=config, name=name)
+        elif task == 'inceptionV3':
+            model = InceptionV3(config['INPUT_SHAPE'], output_canals, name, imagenet=config['IMAGENET'])
         model.labels = labels
 
     elif task == 'style_transfer':
@@ -109,7 +112,7 @@ def main(task, dataset, batch_size=BATCH_SIZE):
         model = import_categorizer(output_canals, config=config, name=name)
         model._make_predict_function()
         model.labels = labels
-        train_generator = GrowingGenerator(model, train_folder, steps=STEPS_PER_EPOCH,batch_size=batch_size,
+        train_generator = GrowingGenerator(model, train_folder, steps=STEPS_PER_EPOCH, batch_size=batch_size,
                                            input_shape=config['INPUT_SHAPE'])
         val_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
         callback_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)

@@ -1,7 +1,9 @@
 import matplotlib.pyplot as plt
 
+LIMIT = 8
 
-def plot_example(input_, prediction, labels):
+def plot_example(input_, prediction, labels, limit=LIMIT):
+    input_ = input_[:limit]
     n = input_.shape[0]
     plt.figure(figsize=(18, 8))
     plt.tight_layout()
