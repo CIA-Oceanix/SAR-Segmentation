@@ -1,6 +1,8 @@
 import os
 import fire
 
+import Rignak_DeepLearning.deprecation_warnings
+
 from keras.callbacks import ModelCheckpoint
 
 from Rignak_DeepLearning.data import get_dataset_roots
@@ -20,7 +22,6 @@ from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHist
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
     thumbnail_generator, normalize_generator as normalize, augment_generator as augment
 from Rignak_DeepLearning.config import get_config
-from Rignak_DeepLearning.growing_dataset import GrowingGenerator
 
 """
 >>> python train.py autoencoder fav-rignak 
@@ -30,14 +31,12 @@ from Rignak_DeepLearning.growing_dataset import GrowingGenerator
 >>> python train.py mnist mnist batch_size=256
 >>> python train.py style_transfer colorization 
 >>> python train.py bimode waifu 
->>> python train.py growing waifu 
 """
 
 BATCH_SIZE = 8
-STEPS_PER_EPOCH = 2000
-VALIDATION_STEPS = 200
+STEPS_PER_EPOCH = 5000
+VALIDATION_STEPS = 500
 EPOCHS = 1000
-
 
 def main(task, dataset, batch_size=BATCH_SIZE):
     """
@@ -66,6 +65,7 @@ def main(task, dataset, batch_size=BATCH_SIZE):
         else:
             config['OUTPUT_CANALS'] = len(os.listdir(train_folder))
         model = import_flat_model(name=name, config=config)
+        model.callback_titles = ['Input', 'Prediction', 'Truth'] + os.listdir(train_folder)
 
     elif task == 'autoencoder':
         train_generator = autoencoder_generator(train_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
@@ -73,6 +73,7 @@ def main(task, dataset, batch_size=BATCH_SIZE):
         callback_generator = autoencoder_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
 
         model = import_unet_model(name=name, config=config)
+        model.callback_titles = ['Input', 'Prediction', 'Truth']
 
     elif task == 'categorizer' or task == "inceptionV3":
         train_generator = categorizer_generator(train_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
@@ -85,6 +86,8 @@ def main(task, dataset, batch_size=BATCH_SIZE):
             model = import_categorizer(output_canals, config=config, name=name)
         elif task == 'inceptionV3':
             model = InceptionV3(config['INPUT_SHAPE'], output_canals, name, imagenet=config['IMAGENET'])
+        else:
+            raise ValueError(f"Task name is {task}")
         model.labels = labels
 
     elif task == 'style_transfer':
@@ -105,19 +108,8 @@ def main(task, dataset, batch_size=BATCH_SIZE):
         labels = os.listdir(train_folder)
         model = import_bimode(config['OUTPUT_CANALS'], labels, config=config, name=name)
         model.labels = labels
-
-    elif task == 'growing':
-        labels = os.listdir(train_folder)
-        output_canals = len(labels)
-        model = import_categorizer(output_canals, config=config, name=name)
-        model._make_predict_function()
-        model.labels = labels
-        train_generator = GrowingGenerator(model, train_folder, steps=STEPS_PER_EPOCH, batch_size=batch_size,
-                                           input_shape=config['INPUT_SHAPE'])
-        val_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-        callback_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
     else:
-        raise NameError
+        raise ValueError(f"Task name is {task}")
 
     # choose the data augmentation, normalization and callbacks
     if task in ['saliency', 'autoencoder', 'style_transfer']:
@@ -144,8 +136,6 @@ def main(task, dataset, batch_size=BATCH_SIZE):
                      BimodeHistoryCallback(),
                      BimodeExampleCallback(callback_generator),
                      ConfusionCallback(callback_generator, labels)]
-    elif task == 'growing':
-        callbacks = []
     else:
         train_generator = normalize(augment(train_generator, noise_function=noise_function, apply_on_output=False),
                                     normalization_function, apply_on_output=False)

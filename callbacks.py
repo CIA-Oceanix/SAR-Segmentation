@@ -1,5 +1,6 @@
 import os
 import matplotlib
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 
@@ -75,7 +76,8 @@ class AutoencoderExampleCallback(Callback):
 
     def on_epoch_end(self, epoch, logs={}):
         example = next(self.generator)
-        plot_autoencoder_example(example[0], self.model.predict(example[0]), groundtruth=example[1])
+        plot_autoencoder_example(example[0], self.model.predict(example[0]), groundtruth=example[1],
+                                 labels=self.model.callback_titles)
         plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
@@ -105,7 +107,6 @@ class ConfusionCallback(Callback):
         self.root = root
         self.generator = generator
         self.labels = labels
-
 
     def on_train_begin(self, logs=None):
         os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)

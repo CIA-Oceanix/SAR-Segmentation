@@ -15,6 +15,6 @@ from Rignak_DeepLearning.data import get_dataset_roots
 result_dir = 'results'
 data_dir = get_dataset_roots('stylegan')[0]
 cache_dir = 'cache'
-run_dir_ignore = ['results', 'cache']
+run_dir_ignore = ['__pycache__', '.ipynb_checkpoints', 'datasets', 'results', 'cache']
 
 #----------------------------------------------------------------------------

@@ -1,29 +1,68 @@
-import numpy as np
 import matplotlib.pyplot as plt
 
+from Rignak_Misc.plt import imshow, COLORMAPS
 
-def plot_example(input_, prediction, groundtruth=None, min_value=0, max_value=1, max_thumbs=8):
-    input_ = input_[:, :, :, ::-1][:max_thumbs]
-    prediction = prediction[:, :, :, ::-1]
-    if groundtruth is None:
-        n = 2
-    else:
-        n = 3
+MAX_THUMBS = 8
 
+
+def plot_less_than_three_canals(input_, prediction, groundtruth, labels):
     plt.figure(figsize=(20, 8))
-    for i, im in enumerate(input_):
-        plt.subplot(n, len(input_), 1 + i)
-        plt.imshow(im)
-        plt.subplot(n, len(input_), i + 1 + len(input_))
-        if prediction.shape[-1] == 1:
-            plt.imshow(prediction[i][:, :, 0], vmin=min_value, vmax=max_value, cmap='hot')
-        else:
-            plt.imshow(prediction[i], vmin=min_value, vmax=max_value)
-        if n == 3:
-            plt.subplot(n, len(input_), i + 1 + len(input_) * 2)
-            if groundtruth.shape[-1] == 1:
-                plt.imshow(groundtruth[i, :, :][:, :, 0], cmap='hot', vmin=min_value, vmax=max_value)
-            else:
-                plt.imshow(groundtruth[i, :, :, ::-1], vmin=min_value, vmax=max_value)
+    if groundtruth is None:
+        line_number = 2
+    else:
+        line_number = 3
+    col_number = input_.shape[0]
 
+    for i, im in enumerate(input_):
+        plt.subplot(line_number, col_number, 1 + i)
+        imshow(input_[i])
+        if not i and labels is not None:
+            plt.title(labels[0])
+
+        plt.subplot(line_number, col_number, i + 1 + col_number)
+        imshow(prediction[i])
+        if not i and labels is not None:
+            plt.title(labels[1])
+
+        if line_number == 3:
+            plt.subplot(line_number, col_number, i + 1 + col_number * 2)
+            imshow(groundtruth[i])
+            if not i and labels is not None:
+                plt.title(labels[2])
+
+
+def plot_more_than_three_canals(input_, prediction, groundtruth, labels):
+    plt.figure(figsize=(40, 16))
+    line_number = input_.shape[0]
+    col_number = groundtruth.shape[-1] + 3
+    for i, (input_thumb, pred_thumb, truth_thumb) in enumerate(zip(input_, prediction, groundtruth)):
+        plt.subplot(line_number, col_number, i * col_number + 1)
+        imshow(input_thumb, cmap='gray')
+        if not i and labels is not None:
+            plt.title(labels[0])
+
+        plt.subplot(line_number, col_number, i * col_number + 2)
+        imshow(pred_thumb)
+        if not i and labels is not None:
+            plt.title(labels[1])
+
+        plt.subplot(line_number, col_number, i * col_number + 3)
+        imshow(truth_thumb)
+        if not i and labels is not None:
+            plt.title(labels[2])
+
+        for canal in range(pred_thumb.shape[2]):
+            plt.subplot(line_number, col_number, i * col_number + canal + 4)
+            imshow(pred_thumb[:, :, canal], cmap=COLORMAPS[canal])
+            plt.colorbar()
+            if not i and labels is not None:
+                plt.title(f"Prediction: {labels[3 + canal]}")
+
+
+def plot_example(input_, prediction, groundtruth=None, max_thumbs=MAX_THUMBS, labels=None):
+    input_ = input_[:max_thumbs]
+    if prediction.shape[-1] <= 3:
+        plot_less_than_three_canals(input_, prediction, groundtruth, labels)
+    else:
+        plot_more_than_three_canals(input_, prediction, groundtruth, labels)
     plt.tight_layout()

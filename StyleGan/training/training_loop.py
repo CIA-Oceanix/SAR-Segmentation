@@ -25,8 +25,8 @@ from training import misc
 # Just-in-time processing of training images before feeding them to the networks.
 
 # choose to resume or not
-resume_run_id           = None # none : from scratch
-resume_kimg             = 0
+resume_run_id           = 9 # none : from scratch
+resume_kimg             = 1760
 
 # doubling the resolution every x kimg
 lod_training_kimg       = 600

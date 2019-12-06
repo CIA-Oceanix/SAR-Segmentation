@@ -30,7 +30,6 @@
       16,
       32
     ],
-    "OUTPUT_CANALS": 3,
     "ACTIVATION": "relu",
     "LAST_ACTIVATION": "sigmoid",
     "NAME": "DEFAULT_SALIENCY_NAME"

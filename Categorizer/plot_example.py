@@ -13,7 +13,7 @@ def plot_example(input_, prediction, labels, limit=LIMIT):
         else:
             tick_label = labels
         plt.subplot(2, n, i + 1)
-        plt.imshow(im[:, :, ::-1])
+        plt.imshow(im)
 
         plt.subplot(2, n, i + 1 + n)
         plt.barh(labels, classes, tick_label=tick_label)

@@ -47,19 +47,22 @@ def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE):
     folders = os.listdir(root)
     if len(folders) == 2:
         colors = np.array([[0], [255]])
-    elif len(folders) == 3:
-        colors = np.array([[255, 0, 0], [0, 255, 0], [0, 0, 255]])
+    elif len(folders) > 2:
+        colors = np.eye(len(folders), dtype=np.int) * 255
     else:
-        raise ValueError
+        raise ValueError(f'Number of folders (currently {len(folders)})should be more than 2')
+
     output_shape = (input_shape[0], input_shape[1], colors.shape[-1])
     mapping = {os.path.join(root, folder, filename): colors[i]
                for (i, folder) in enumerate(folders)
                for filename in os.listdir(os.path.join(root, folder))}
     filenames = list(mapping.keys())
+
+    input_canals = read(filenames[0]).shape[-1]
     while True:
         selected_filenames = np.random.choice(filenames, size=batch_size)
 
-        batch_input = np.zeros((batch_size, input_shape[0], input_shape[1], 3))
+        batch_input = np.zeros((batch_size, input_shape[0], input_shape[1], input_canals))
         batch_output = np.zeros((batch_size, output_shape[0], output_shape[1], output_shape[2]))
 
         for i, selected_filename in enumerate(selected_filenames):
@@ -75,7 +78,6 @@ def normalize_generator(generator, normalization_function, apply_on_output=False
         batch_input = normalization_function(batch_input)
         if apply_on_output:
             batch_output = normalization_function(batch_output)
-
         yield batch_input, batch_output
 
 
@@ -96,7 +98,11 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
                     output = output[:, ::-1]
 
             rotation_matrix = cv2.getRotationMatrix2D((input_shape[0] // 2, input_shape[1] // 2), angle, zoom)
-            batch_input[i] = cv2.warpAffine(input_, rotation_matrix, input_shape[:2])
+            if batch_input.shape[-1] != 1:
+                batch_input[i] = cv2.warpAffine(input_, rotation_matrix, input_shape[:2])
+            else:
+                batch_input[i, :, :, 0] = cv2.warpAffine(input_, rotation_matrix, input_shape[:2])
+
             if apply_on_output:
                 if batch_output.shape[1] == 2:
                     if batch_output.shape[-1] == 1:
@@ -111,7 +117,6 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
 
         if noise_function is not None:
             batch_input = noise_function(batch_input)
-
         yield batch_input, batch_output
 
 
