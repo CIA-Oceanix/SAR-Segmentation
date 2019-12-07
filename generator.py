@@ -2,6 +2,7 @@ import numpy as np
 import cv2
 import os
 import scipy.misc
+import glob
 
 from Rignak_DeepLearning.data import read
 
@@ -12,17 +13,15 @@ ROTATION = 20
 
 
 def autoencoder_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
-    filenames = [os.path.join(root, filename) for filename in os.listdir(root)]
+    filenames = glob.glob(os.path.join(root, '*', '*.png')) + glob.glob(os.path.join(root, '*.png'))
     while True:
         batch_path = np.random.choice(filenames, size=batch_size)
         batch_input = np.array([read(path, input_shape) for path in batch_path])
-        batch_output = batch_input.copy()
-
-        yield batch_input, batch_output
+        yield batch_input, batch_input.copy()
 
 
 def make_categorizer_output(index, label_number):
-    output = np.zeros((label_number))
+    output = np.zeros(label_number)
     output[index] = 1
     return output
 

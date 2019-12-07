@@ -1,4 +1,5 @@
 import os
+import numpy as np
 import matplotlib
 
 matplotlib.use('Agg')
@@ -75,9 +76,17 @@ class AutoencoderExampleCallback(Callback):
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
-        example = next(self.generator)
-        plot_autoencoder_example(example[0], self.model.predict(example[0]), groundtruth=example[1],
-                                 labels=self.model.callback_titles)
+        example = [[], [], []]
+        while len(example[0]) < 8:
+            next_ = next(self.generator)
+            example[0] += list(next_[0])
+            example[1] += list(next_[1])
+            example[2] += list(self.model.predict(next_[0]))
+        example[0] = np.array(example[0])
+        example[1] = np.array(example[1])
+        example[2] = np.array(example[2])
+
+        plot_autoencoder_example(example[0], example[2], groundtruth=example[1], labels=self.model.callback_titles)
         plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()

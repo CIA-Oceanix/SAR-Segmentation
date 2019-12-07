@@ -15,7 +15,7 @@ LOAD = False
 LEARNING_RATE = 10 ** -4
 
 CONFIG_KEY = 'autoencoder'
-CONFIG = get_config(CONFIG_KEY)
+CONFIG =get_config()[CONFIG_KEY]
 
 
 def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,

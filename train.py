@@ -20,7 +20,7 @@ from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator
 from Rignak_DeepLearning.BiOutput.callbacks import ExampleCallback as BimodeExampleCallback
 from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHistoryCallback
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
-    thumbnail_generator, normalize_generator as normalize, augment_generator as augment
+    thumbnail_generator as thumb_generator, normalize_generator, augment_generator
 from Rignak_DeepLearning.config import get_config
 
 """
@@ -34,9 +34,170 @@ from Rignak_DeepLearning.config import get_config
 """
 
 BATCH_SIZE = 8
-STEPS_PER_EPOCH = 5000
-VALIDATION_STEPS = 500
+STEPS_PER_EPOCH = 2000
+VALIDATION_STEPS = 200
 EPOCHS = 1000
+
+DEFAULT_INPUT_SHAPE = (256, 256, 3)
+DEFAULT_SCALING = 1
+
+
+def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAULT_INPUT_SHAPE,
+                   default_scaling=DEFAULT_SCALING):
+    def get_saliency_generators():
+        train_generator = saliency_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
+        val_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        callback_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        return train_generator, val_generator, callback_generator
+
+    def get_autoencoder_generators():
+        train_generator = autoencoder_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
+        val_generator = autoencoder_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        callback_generator = autoencoder_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        return train_generator, val_generator, callback_generator, train_folder
+
+    def get_categorizer_generators():
+        train_generator = categorizer_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
+        val_generator = categorizer_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        callback_generator = categorizer_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        return train_generator, val_generator, callback_generator, train_folder
+
+    def get_style_transfer_generators():
+        train_generator = thumb_generator(train_folder, input_shape=input_shape, batch_size=batch_size, scaling=scaling)
+        val_generator = thumb_generator(val_folder, input_shape=input_shape, batch_size=batch_size, scaling=scaling)
+        callback_gene = thumb_generator(val_folder, input_shape=input_shape, batch_size=batch_size, scaling=scaling)
+        return train_generator, val_generator, callback_gene, train_folder
+
+    def get_bimode_generator():
+        train_generator = bimode_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
+        val_generator = bimode_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        callback_generator = bimode_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        return train_generator, val_generator, callback_generator, train_folder
+
+    input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
+    scaling = config[task].get('SCALING', default_scaling)
+    train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
+
+    functions = {"saliency": get_saliency_generators,
+                 "autoencoder": get_autoencoder_generators,
+                 "flat_autoencoder": get_autoencoder_generators,
+                 "categorizer": get_categorizer_generators,
+                 "inceptionV3": get_categorizer_generators,
+                 "style_transfer": get_style_transfer_generators,
+                 "bimode": get_bimode_generator,
+                 }
+    return functions[task]()
+
+
+def get_data_augmentation(task, train_generator, val_generator, callback_generator):
+    def get_im2im_data_augmentation():
+        new_train_generator = normalize_generator(augment_generator(train_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
+        new_val_generator = normalize_generator(augment_generator(val_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
+        new_callback_generator = normalize_generator(augment_generator(callback_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
+        return new_train_generator, new_val_generator, new_callback_generator
+
+    def get_bimode_augmentation():
+        new_train_generator = bimode_normalize(bimode_augment(train_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
+        new_val_generator = bimode_normalize(bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
+        new_callback_generator = bimode_normalize(bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
+        return new_train_generator, new_val_generator, new_callback_generator
+
+    def get_categorizer_augmentation():
+        new_train_generator = normalize_generator(augment_generator(train_generator, noise_function=noise_function, apply_on_output=False), normalization_function, apply_on_output=False)
+        new_val_generator = normalize_generator(augment_generator(val_generator, noise_function=noise_function, apply_on_output=False), normalization_function, apply_on_output=False)
+        new_callback_generator = normalize_generator(augment_generator(callback_generator, noise_function=noise_function, apply_on_output=False), normalization_function, apply_on_output=False)
+        return new_train_generator, new_val_generator, new_callback_generator
+
+    normalization_function = intensity_normalization()[0]
+    noise_function = get_uniform_noise_function()
+
+    functions = {"style_transfer": get_im2im_data_augmentation,
+                 "saliency": get_im2im_data_augmentation,
+                 "autoencoder": get_im2im_data_augmentation,
+                 "flat_autoencoder": get_im2im_data_augmentation,
+                 "categorizer": get_categorizer_augmentation,
+                 "inceptionV3": get_categorizer_augmentation,
+                 "bimode": get_bimode_augmentation,
+                 }
+    return functions[task]()
+
+
+def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INPUT_SHAPE):
+    def get_saliency_model():
+        if len(labels) == 2:
+            config[task]['OUTPUT_CANALS'] = 1
+        else:
+            config[task]['OUTPUT_CANALS'] = len(labels)
+        model = import_flat_model(name=name, config=config[task])
+        model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
+        return model
+
+    def get_autoencoder_model():
+        if task == 'flat_autoencoder':
+            model = import_flat_model(name=name, config=config['saliency'])
+        else:
+            model = import_unet_model(name=name, config=config[task])
+        model.callback_titles = ['Input', 'Prediction', 'Truth']
+        return model
+
+    def get_categorizer_model():
+        if task == 'inceptionV3':
+            model = InceptionV3(input_shape, len(labels), name, imagenet=config[task]['IMAGENET'])
+        else:
+            model = import_categorizer(len(labels), config=config[task], name=name)
+        model.labels = labels
+        return model
+
+    def get_bimode_model():
+        model = import_bimode(config[task]['OUTPUT_CANALS'], labels, config=config[task], name=name)
+        model.labels = labels
+        return model
+
+    labels = os.listdir(train_folder)
+    input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
+
+    functions = {"saliency": get_saliency_model,
+                 "autoencoder": get_autoencoder_model,
+                 "flat_autoencoder": get_autoencoder_model,
+                 "style_transfer": get_autoencoder_model,
+                 "categorizer": get_categorizer_model,
+                 "inceptionV3": get_categorizer_model,
+                 "bimode": get_bimode_model,
+                 }
+    return functions[task]()
+
+
+def get_callbacks(task, model, callback_generator):
+    def get_im2im_callbacks():
+        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
+                     HistoryCallback(),
+                     AutoencoderExampleCallback(callback_generator)]
+        return callbacks
+
+    def get_bimode_callbacks():
+        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
+                     BimodeHistoryCallback(),
+                     BimodeExampleCallback(callback_generator),
+                     ConfusionCallback(callback_generator, model.labels)]
+        return callbacks
+
+    def get_categorizer_callbacks():
+        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
+                     HistoryCallback(),
+                     ConfusionCallback(callback_generator, model.labels),
+                     ClassificationExampleCallback(callback_generator)]
+        return callbacks
+
+    functions = {"saliency": get_im2im_callbacks,
+                 "autoencoder": get_im2im_callbacks,
+                 "flat_autoencoder": get_im2im_callbacks,
+                 "style_transfer": get_im2im_callbacks,
+                 "categorizer": get_categorizer_callbacks,
+                 "inceptionV3": get_categorizer_callbacks,
+                 "bimode": get_bimode_callbacks,
+                 }
+    return functions[task]()
+
 
 def main(task, dataset, batch_size=BATCH_SIZE):
     """
@@ -48,106 +209,16 @@ def main(task, dataset, batch_size=BATCH_SIZE):
     :param batch_size: size of each batch
     :return:
     """
-    config = get_config(task)
-    task = config['TASK']
-    normalization_function = intensity_normalization()[0]
-    noise_function = get_uniform_noise_function()
-    name = f'{dataset}_{task}'
+    config = get_config()
+    task = config[task]['TASK']
 
     train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
-    if task == 'saliency':
-        train_generator = saliency_generator(train_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-        val_generator = saliency_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-        callback_generator = saliency_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-
-        if len(os.listdir(train_folder)) == 2:
-            config['OUTPUT_CANALS'] = 1
-        else:
-            config['OUTPUT_CANALS'] = len(os.listdir(train_folder))
-        model = import_flat_model(name=name, config=config)
-        model.callback_titles = ['Input', 'Prediction', 'Truth'] + os.listdir(train_folder)
-
-    elif task == 'autoencoder':
-        train_generator = autoencoder_generator(train_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-        val_generator = autoencoder_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-        callback_generator = autoencoder_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-
-        model = import_unet_model(name=name, config=config)
-        model.callback_titles = ['Input', 'Prediction', 'Truth']
-
-    elif task == 'categorizer' or task == "inceptionV3":
-        train_generator = categorizer_generator(train_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-        val_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-
-        callback_generator = categorizer_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-        labels = os.listdir(train_folder)
-        output_canals = len(labels)
-        if task == "categorizer":
-            model = import_categorizer(output_canals, config=config, name=name)
-        elif task == 'inceptionV3':
-            model = InceptionV3(config['INPUT_SHAPE'], output_canals, name, imagenet=config['IMAGENET'])
-        else:
-            raise ValueError(f"Task name is {task}")
-        model.labels = labels
-
-    elif task == 'style_transfer':
-        train_generator = thumbnail_generator(train_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size,
-                                              scaling=config['SCALING'])
-        val_generator = thumbnail_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size,
-                                            scaling=config['SCALING'])
-        callback_generator = thumbnail_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size,
-                                                 scaling=config['SCALING'])
-
-        model = import_unet_model(name=name, config=config)
-
-    elif task == 'bimode':
-        train_generator = bimode_generator(train_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-        val_generator = bimode_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-        callback_generator = bimode_generator(val_folder, input_shape=config['INPUT_SHAPE'], batch_size=batch_size)
-
-        labels = os.listdir(train_folder)
-        model = import_bimode(config['OUTPUT_CANALS'], labels, config=config, name=name)
-        model.labels = labels
-    else:
-        raise ValueError(f"Task name is {task}")
-
-    # choose the data augmentation, normalization and callbacks
-    if task in ['saliency', 'autoencoder', 'style_transfer']:
-        train_generator = normalize(augment(train_generator, noise_function=noise_function, apply_on_output=True),
-                                    normalization_function, apply_on_output=True)
-        val_generator = normalize(augment(val_generator, noise_function=noise_function, apply_on_output=True),
-                                  normalization_function, apply_on_output=True)
-        callback_generator = normalize(augment(callback_generator, noise_function=noise_function, apply_on_output=True),
-                                       normalization_function, apply_on_output=True)
-        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
-                     HistoryCallback(),
-                     AutoencoderExampleCallback(callback_generator)]
-    elif task == 'bimode':
-        train_generator = bimode_normalize(
-            bimode_augment(train_generator, noise_function=noise_function, apply_on_output=True),
-            normalization_function, apply_on_output=True)
-        val_generator = bimode_normalize(
-            bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True),
-            normalization_function, apply_on_output=True)
-        callback_generator = bimode_normalize(
-            bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True),
-            normalization_function, apply_on_output=True)
-        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
-                     BimodeHistoryCallback(),
-                     BimodeExampleCallback(callback_generator),
-                     ConfusionCallback(callback_generator, labels)]
-    else:
-        train_generator = normalize(augment(train_generator, noise_function=noise_function, apply_on_output=False),
-                                    normalization_function, apply_on_output=False)
-        val_generator = normalize(augment(val_generator, noise_function=noise_function, apply_on_output=False),
-                                  normalization_function, apply_on_output=False)
-        callback_generator = normalize(
-            augment(callback_generator, noise_function=noise_function, apply_on_output=False),
-            normalization_function, apply_on_output=False)
-        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
-                     HistoryCallback(),
-                     ConfusionCallback(callback_generator, labels),
-                     ClassificationExampleCallback(callback_generator)]
+    train_generator, val_generator, callback_generator, train_dir = get_generators(config, task, dataset, batch_size)
+    train_generator, val_generator, callback_generator = get_data_augmentation(task, train_generator, val_generator,
+                                                                               callback_generator)
+    name = f'{dataset}_{task}'
+    model = get_models(config, task, name, train_folder)
+    callbacks = get_callbacks(task, model, callback_generator)
 
     train(model, train_generator, val_generator, callbacks)
 

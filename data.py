@@ -45,17 +45,8 @@ def read(filename, input_shape=None):
 
 
 def get_dataset_roots(task, dataset='.'):
-    if task in ['categorizer', 'saliency', 'bimode', 'growing', 'inceptionV3']:
-        train_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'train')
-        val_root = os.path.join('E:', 'datasets', 'categorizer', dataset, 'val')
-    elif task in ['autoencoder', 'style_transfer']:
-        train_root = os.path.join('E:', 'datasets', task, dataset, 'train')
-        val_root = os.path.join('E:', 'datasets', task, dataset, 'val')
-    elif task in ['stylegan', 'cyclegan']:
-        train_root = os.path.join('E:', 'datasets', task, dataset)
-        val_root = os.path.join('E:', 'datasets', task, dataset)
-    else:
-        raise ValueError
+    train_root = os.path.join('E:', 'datasets', dataset, 'train')
+    val_root = os.path.join('E:', 'datasets', dataset, 'val')
     return train_root, val_root
 
 
