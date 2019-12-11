@@ -1,7 +1,9 @@
 import numpy as np
 
+DEFAULT_NOSE = 0.0
+DEFAULT_DISABLE_PIXEL = 1/3
 
-def get_uniform_noise_function(f=0.35):
+def get_uniform_noise_function(f=DEFAULT_NOSE):
     def uniform_noise(x):  # std is around 0.35
         xmax = np.max(x)
         xmin = np.min(x)
@@ -15,7 +17,7 @@ def get_uniform_noise_function(f=0.35):
     return uniform_noise
 
 
-def get_disable_pixel_function(f=0.33):
+def get_disable_pixel_function(f=DEFAULT_DISABLE_PIXEL):
     def disable_pixel(x):
         for i in range(x.shape[0]):
             r = np.random.random(x.shape[2])

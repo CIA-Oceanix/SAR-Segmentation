@@ -4,6 +4,17 @@ from functools import lru_cache
 
 from keras.applications.vgg16 import VGG16
 from keras.models import Model
+from keras import backend as K
+
+
+def dice_coef_loss(y_true, y_pred):
+    def dice_coef(y_true, y_pred, smooth=.1):
+        y_true_f = K.flatten(y_true)
+        y_pred_f = K.flatten(y_pred)
+        intersection = K.sum(y_true_f * y_pred_f)
+        return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+
+    return 1 - dice_coef(y_true, y_pred)
 
 
 def encode(latent_vector):
@@ -75,7 +86,6 @@ def get_discriminator_loss(input_size, discriminative):
 
 
 def get_space_roughness(generative, input_size, layers=(1, 2, 3, 4, 5, 6), batch_size=8, step=0.01):
-
     @lru_cache(maxsize=64)
     def space_roughness_from_encoded(encoded_input):
         input_batch = decode(encoded_input)
@@ -92,7 +102,7 @@ def get_space_roughness(generative, input_size, layers=(1, 2, 3, 4, 5, 6), batch
             output_features = get_features(encode(neighbour))
             loss += perceptual_loss(input_features, output_features, args_are_features=True)
 
-        return loss/batch_size
+        return loss / batch_size
 
     def space_roughness(input_batch, output_batch=None):
         return space_roughness_from_encoded(encode(input_batch))

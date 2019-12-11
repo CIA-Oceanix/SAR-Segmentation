@@ -56,13 +56,13 @@ def plot_more_than_three_canals(input_, prediction, groundtruth, labels):
             imshow(pred_thumb[:, :, canal], cmap=COLORMAPS[canal])
             plt.colorbar()
             if not i and labels is not None:
-                plt.title(f"Prediction: {labels[3 + canal]}")
+                plt.title(f"Prediction: {labels[2 + canal]}")
 
 
 def plot_example(input_, prediction, groundtruth=None, max_thumbs=MAX_THUMBS, labels=None):
     input_ = input_[:max_thumbs]
-    if prediction.shape[-1] <= 3:
-        plot_less_than_three_canals(input_, prediction, groundtruth, labels)
-    else:
+    if len(prediction.shape) == 4 and prediction.shape[-1] > 3:
         plot_more_than_three_canals(input_, prediction, groundtruth, labels)
+    else:
+        plot_less_than_three_canals(input_, prediction, groundtruth, labels)
     plt.tight_layout()

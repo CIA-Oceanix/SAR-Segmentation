@@ -34,9 +34,9 @@ from Rignak_DeepLearning.config import get_config
 """
 
 BATCH_SIZE = 8
-STEPS_PER_EPOCH = 2000
-VALIDATION_STEPS = 200
-EPOCHS = 1000
+TRAINING_STEPS = 2500
+VALIDATION_STEPS = 250
+EPOCHS = 2000
 
 DEFAULT_INPUT_SHAPE = (256, 256, 3)
 DEFAULT_SCALING = 1
@@ -48,7 +48,7 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
         train_generator = saliency_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
         val_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
         callback_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
-        return train_generator, val_generator, callback_generator
+        return train_generator, val_generator, callback_generator, train_folder
 
     def get_autoencoder_generators():
         train_generator = autoencoder_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
@@ -134,10 +134,10 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
 
     def get_autoencoder_model():
         if task == 'flat_autoencoder':
-            model = import_flat_model(name=name, config=config['saliency'])
+            model = import_flat_model(name=name, config=config[task])
         else:
             model = import_unet_model(name=name, config=config[task])
-        model.callback_titles = ['Input', 'Prediction', 'Truth']
+        model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
         return model
 
     def get_categorizer_model():
@@ -199,16 +199,8 @@ def get_callbacks(task, model, callback_generator):
     return functions[task]()
 
 
-def main(task, dataset, batch_size=BATCH_SIZE):
-    """
-    Train a network
-
-    :param task: the type of neural network,
-    either "autoencoder", "saliency", "mnist", "categorizer", "style_transfer" or "speech_categorization"
-    :param dataset: name of the folder containing the images
-    :param batch_size: size of each batch
-    :return:
-    """
+def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
+         training_steps=TRAINING_STEPS, validation_steps=VALIDATION_STEPS):
     config = get_config()
     task = config[task]['TASK']
 
@@ -220,15 +212,16 @@ def main(task, dataset, batch_size=BATCH_SIZE):
     model = get_models(config, task, name, train_folder)
     callbacks = get_callbacks(task, model, callback_generator)
 
-    train(model, train_generator, val_generator, callbacks)
+    train(model, train_generator, val_generator, callbacks,
+          epochs=epochs, training_steps=training_steps, validation_steps=validation_steps)
 
 
-def train(model, train_generator, val_generator, callbacks, steps_per_epoch=STEPS_PER_EPOCH,
+def train(model, train_generator, val_generator, callbacks, training_steps=TRAINING_STEPS,
           validation_steps=VALIDATION_STEPS, epochs=EPOCHS):
     model.fit_generator(generator=train_generator,
                         validation_data=val_generator,
                         verbose=1,
-                        steps_per_epoch=steps_per_epoch,
+                        steps_per_epoch=training_steps,
                         validation_steps=validation_steps,
                         epochs=epochs,
                         callbacks=callbacks)

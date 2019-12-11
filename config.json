@@ -34,6 +34,24 @@
     "LAST_ACTIVATION": "sigmoid",
     "NAME": "DEFAULT_SALIENCY_NAME"
   },
+  "flat_autoencoder": {
+    "TASK": "flat_autoencoder",
+    "INPUT_SHAPE": [
+      392,
+      392,
+      1
+    ],
+    "CONV_LAYERS": [
+      8,
+      16,
+      32,
+      64
+    ],
+    "ACTIVATION": "relu",
+    "LAST_ACTIVATION": "sigmoid",
+    "OUTPUT_CANALS": 1,
+    "NAME": "DEFAULT_SALIENCY_NAME"
+  },
   "mnist": {
     "TASK": "categorizer",
     "INPUT_SHAPE": [
@@ -92,7 +110,7 @@
       32,
       64
     ],
-    "OUTPUT_CANALS": 3,
+    "OUTPUT_CANALS": 1,
     "ACTIVATION": "relu",
     "LAST_ACTIVATION": "sigmoid",
     "NAME": "DEFAULT_UNET_NAME",
@@ -164,11 +182,10 @@
     "TASK": "inceptionV3",
     "IMAGENET": false,
     "INPUT_SHAPE": [
-      256,
-      256,
-      3
+      512,
+      512,
+      1
     ],
-    "OUTPUT_CANALS": 3,
     "NAME": "DEFAULT_INCEPTION_NAME"
   },
   "inceptionV3_fine-tuning": {

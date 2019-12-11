@@ -8,6 +8,7 @@ from keras.layers import Input, Conv2D
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.models import convolution_block, deconvolution_block
 from Rignak_DeepLearning.config import get_config
+from Rignak_DeepLearning.loss import dice_coef_loss
 
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
@@ -44,7 +45,11 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     conv_layer = Conv2D(config['OUTPUT_CANALS'], (1, 1), activation=config['LAST_ACTIVATION'])(block)
 
     model = Model(inputs=[inputs], outputs=[conv_layer])
-    model.compile(optimizer=Adam(lr=learning_rate), loss='mse')
+    if config['OUTPUT_CANALS'] == 1:
+        loss = dice_coef_loss
+    else:
+        loss = 'mse'
+    model.compile(optimizer=Adam(lr=learning_rate), loss=loss)
 
     model.name = name
     model.weight_filename = weight_filename

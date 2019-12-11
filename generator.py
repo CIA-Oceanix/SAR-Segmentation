@@ -8,8 +8,8 @@ from Rignak_DeepLearning.data import read
 
 BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
-ZOOM = 0.2
-ROTATION = 20
+ZOOM = 0.0
+ROTATION = 0
 
 
 def autoencoder_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
@@ -139,21 +139,28 @@ def thumbnail_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, in
                        for filename in os.listdir(os.path.join(root, input_root))]
     output_filenames = [os.path.join(root, output_root, filename)
                         for filename in os.listdir(os.path.join(root, output_root))]
+    first_output = read(output_filenames[0])
     while True:
         batch_input = np.zeros((batch_size, input_shape[0], input_shape[1], input_shape[2]))
-        batch_output = np.zeros((batch_size, input_shape[0], input_shape[1], input_shape[2]))
+        batch_output = np.zeros((batch_size, input_shape[0], input_shape[1], first_output.shape[-1]))
 
         filenames_index = np.random.randint(0, len(input_filenames), size=batch_size)
         for i, filename_index in enumerate(filenames_index):
-            input_ = cv2.imread(input_filenames[filename_index])
-            output = cv2.imread(output_filenames[filename_index])
+            input_ = read(input_filenames[filename_index])
+            output = read(output_filenames[filename_index])
             if scaling != 1 and input_.shape[0] * scaling > input_shape[0] \
                     and input_.shape[1] * scaling > input_shape[1]:
                 input_ = scipy.misc.imresize(input_, (int(input_.shape[0] * scaling), int(input_.shape[1] * scaling)))
                 output = scipy.misc.imresize(output, (int(output.shape[0] * scaling), int(output.shape[1] * scaling)))
-            x_offset = np.random.randint(0, input_.shape[0] - input_shape[0])
-            y_offset = np.random.randint(0, input_.shape[1] - input_shape[1])
+
+            if input_shape[0] == input_.shape[0]:
+                x_offset = 0
+            else:
+                x_offset = np.random.randint(0, input_.shape[0] - input_shape[0])
+            if input_shape[1] == input_.shape[1]:
+                y_offset = 0
+            else:
+                y_offset = np.random.randint(0, input_.shape[1] - input_shape[1])
             batch_input[i] = input_[x_offset:x_offset + input_shape[0], y_offset:y_offset + input_shape[1]]
             batch_output[i] = output[x_offset:x_offset + input_shape[0], y_offset:y_offset + input_shape[1]]
-
         yield batch_input, batch_output

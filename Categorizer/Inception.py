@@ -22,7 +22,7 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
     x = Dense(output_shape, activation='softmax')(x)
-    model = Model(base_model.input, outputs = x)
+    model = Model(base_model.input, outputs=x)
 
     model.compile(optimizer='rmsprop', loss='categorical_crossentropy', metrics=['accuracy'])
 

@@ -37,7 +37,8 @@ def read(filename, input_shape=None):
     if im is None:
         print(f"Error when reading {filename}")
         return np.zeros(input_shape)
-    if input_shape is not None and im.shape != input_shape:
+    if input_shape is not None and im.shape[0] != input_shape[0] and im.shape[1] != input_shape[1]:
+        print(input_shape[:2], im.shape[:2], filename)
         im = scipy.misc.imresize(im, input_shape[:2])
     if len(im.shape) == 2:
         im = np.expand_dims(im, axis=-1)
