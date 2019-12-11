@@ -20,27 +20,34 @@ WEIGHT_DECAY = 10 ** -5
 
 CONFIG_KEY = 'categorizer'
 CONFIG = get_config()[CONFIG_KEY]
+DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 
-def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, weight_decay=WEIGHT_DECAY,
-                 learning_rate=LEARNING_RATE, name=CONFIG['NAME'], config=CONFIG):
+def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
+                 weight_decay=WEIGHT_DECAY,
+                 learning_rate=LEARNING_RATE, name=DEFAULT_NAME, config=CONFIG):
     weight_filename = os.path.join(weight_root, f"{name}.h5")
     summary_filename = os.path.join(summary_root, f"{name}.txt")
 
-    input_layer = Input(config['INPUT_SHAPE'])
+    conv_layers = config['CONV_LAYERS']
+    dense_layers = config['DENSE_LAYERS']
+    input_shape = config.get('INPUT_SHAPE', (256, 256, 3))
+    activation = config.get('ACTIVATION', 'relu')
+    last_activation = config.get('LAST_ACTIVATION', 'softmax')
 
+    input_layer = Input(input_shape)
     block = None
-    for neurons in config['CONV_LAYERS']:
+    for neurons in conv_layers:
         if block is None:
-            block, _ = convolution_block(input_layer, neurons, activation=config['ACTIVATION'])
+            block, _ = convolution_block(input_layer, neurons, activation=activation)
         else:
-            block, _ = convolution_block(block, neurons, activation=config['ACTIVATION'])
+            block, _ = convolution_block(block, neurons, activation=activation)
 
     block = Flatten()(block)
-    for neurons in config['DENSE_LAYERS']:
-        block = Dense(neurons, kernel_regularizer=l2(weight_decay), activation=config['ACTIVATION'])(block)
+    for neurons in dense_layers:
+        block = Dense(neurons, kernel_regularizer=l2(weight_decay), activation=activation)(block)
         block = Dropout(0.5)(block)
-    block = Dense(output_canals, activation=config['LAST_ACTIVATION'])(block)
+    block = Dense(output_canals, activation=last_activation)(block)
 
     model = Model(inputs=input_layer, outputs=block)
 

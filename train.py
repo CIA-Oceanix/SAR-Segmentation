@@ -37,6 +37,7 @@ BATCH_SIZE = 8
 TRAINING_STEPS = 2500
 VALIDATION_STEPS = 250
 EPOCHS = 2000
+INITIAL_EPOCH = 15
 
 DEFAULT_INPUT_SHAPE = (256, 256, 3)
 DEFAULT_SCALING = 1
@@ -91,21 +92,39 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
 
 def get_data_augmentation(task, train_generator, val_generator, callback_generator):
     def get_im2im_data_augmentation():
-        new_train_generator = normalize_generator(augment_generator(train_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
-        new_val_generator = normalize_generator(augment_generator(val_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
-        new_callback_generator = normalize_generator(augment_generator(callback_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
+        new_train_generator = normalize_generator(
+            augment_generator(train_generator, noise_function=noise_function, apply_on_output=True),
+            normalization_function, apply_on_output=True)
+        new_val_generator = normalize_generator(
+            augment_generator(val_generator, noise_function=noise_function, apply_on_output=True),
+            normalization_function, apply_on_output=True)
+        new_callback_generator = normalize_generator(
+            augment_generator(callback_generator, noise_function=noise_function, apply_on_output=True),
+            normalization_function, apply_on_output=True)
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_bimode_augmentation():
-        new_train_generator = bimode_normalize(bimode_augment(train_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
-        new_val_generator = bimode_normalize(bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
-        new_callback_generator = bimode_normalize(bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True), normalization_function, apply_on_output=True)
+        new_train_generator = bimode_normalize(
+            bimode_augment(train_generator, noise_function=noise_function, apply_on_output=True),
+            normalization_function, apply_on_output=True)
+        new_val_generator = bimode_normalize(
+            bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True), normalization_function,
+            apply_on_output=True)
+        new_callback_generator = bimode_normalize(
+            bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True),
+            normalization_function, apply_on_output=True)
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_categorizer_augmentation():
-        new_train_generator = normalize_generator(augment_generator(train_generator, noise_function=noise_function, apply_on_output=False), normalization_function, apply_on_output=False)
-        new_val_generator = normalize_generator(augment_generator(val_generator, noise_function=noise_function, apply_on_output=False), normalization_function, apply_on_output=False)
-        new_callback_generator = normalize_generator(augment_generator(callback_generator, noise_function=noise_function, apply_on_output=False), normalization_function, apply_on_output=False)
+        new_train_generator = normalize_generator(
+            augment_generator(train_generator, noise_function=noise_function, apply_on_output=False),
+            normalization_function, apply_on_output=False)
+        new_val_generator = normalize_generator(
+            augment_generator(val_generator, noise_function=noise_function, apply_on_output=False),
+            normalization_function, apply_on_output=False)
+        new_callback_generator = normalize_generator(
+            augment_generator(callback_generator, noise_function=noise_function, apply_on_output=False),
+            normalization_function, apply_on_output=False)
         return new_train_generator, new_val_generator, new_callback_generator
 
     normalization_function = intensity_normalization()[0]
@@ -122,39 +141,41 @@ def get_data_augmentation(task, train_generator, val_generator, callback_generat
     return functions[task]()
 
 
-def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INPUT_SHAPE):
+def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INPUT_SHAPE, load=False):
     def get_saliency_model():
         if len(labels) == 2:
             config[task]['OUTPUT_CANALS'] = 1
         else:
             config[task]['OUTPUT_CANALS'] = len(labels)
-        model = import_flat_model(name=name, config=config[task])
+        model = import_flat_model(name=name, config=config[task], load=load)
         model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
         return model
 
     def get_autoencoder_model():
         if task == 'flat_autoencoder':
-            model = import_flat_model(name=name, config=config[task])
+            model = import_flat_model(name=name, config=config[task], load=load)
         else:
-            model = import_unet_model(name=name, config=config[task])
+            model = import_unet_model(name=name, config=config[task], load=load)
         model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
         return model
 
     def get_categorizer_model():
         if task == 'inceptionV3':
-            model = InceptionV3(input_shape, len(labels), name, imagenet=config[task]['IMAGENET'])
+            model = InceptionV3(input_shape, len(labels), name, load=load,
+                                imagenet=config[task].get('IMAGENET', False))
         else:
-            model = import_categorizer(len(labels), config=config[task], name=name)
+            model = import_categorizer(len(labels), config=config[task], name=name, load=load)
         model.labels = labels
         return model
 
     def get_bimode_model():
-        model = import_bimode(config[task]['OUTPUT_CANALS'], labels, config=config[task], name=name)
+        model = import_bimode(output_canals, labels, config=config[task], name=name, load=load)
         model.labels = labels
         return model
 
     labels = os.listdir(train_folder)
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
+    output_canals = config[task].get('OUTPUT_CANALS')
 
     functions = {"saliency": get_saliency_model,
                  "autoencoder": get_autoencoder_model,
@@ -200,8 +221,11 @@ def get_callbacks(task, model, callback_generator):
 
 
 def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
-         training_steps=TRAINING_STEPS, validation_steps=VALIDATION_STEPS):
+         training_steps=TRAINING_STEPS, validation_steps=VALIDATION_STEPS, initial_epoch=INITIAL_EPOCH,
+         **kwargs):
     config = get_config()
+    for key, value in kwargs:
+        config[task][key] = value
     task = config[task]['TASK']
 
     train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
@@ -209,22 +233,23 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
     train_generator, val_generator, callback_generator = get_data_augmentation(task, train_generator, val_generator,
                                                                                callback_generator)
     name = f'{dataset}_{task}'
-    model = get_models(config, task, name, train_folder)
+    model = get_models(config, task, name, train_folder, load=initial_epoch != 0)
     callbacks = get_callbacks(task, model, callback_generator)
 
     train(model, train_generator, val_generator, callbacks,
-          epochs=epochs, training_steps=training_steps, validation_steps=validation_steps)
+          epochs=epochs, training_steps=training_steps, validation_steps=validation_steps, initial_epoch=initial_epoch)
 
 
 def train(model, train_generator, val_generator, callbacks, training_steps=TRAINING_STEPS,
-          validation_steps=VALIDATION_STEPS, epochs=EPOCHS):
+          validation_steps=VALIDATION_STEPS, epochs=EPOCHS, initial_epoch=INITIAL_EPOCH):
     model.fit_generator(generator=train_generator,
                         validation_data=val_generator,
                         verbose=1,
                         steps_per_epoch=training_steps,
                         validation_steps=validation_steps,
                         epochs=epochs,
-                        callbacks=callbacks)
+                        callbacks=callbacks,
+                        initial_epoch=initial_epoch)
 
 
 if __name__ == '__main__':

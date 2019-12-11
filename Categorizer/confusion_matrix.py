@@ -9,7 +9,7 @@ MEAN_CLUSTER_SIZE = 3
 GAMMAS = [x / 10 for x in range(20, 0, -1)]
 
 
-GAMMAS = [1]
+GAMMAS = [1.2]
 
 
 def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):

@@ -12,10 +12,7 @@
       32,
       64
     ],
-    "OUTPUT_CANALS": 3,
-    "ACTIVATION": "relu",
-    "LAST_ACTIVATION": "sigmoid",
-    "NAME": "DEFAULT_UNET_NAME"
+    "OUTPUT_CANALS": 3
   },
   "saliency": {
     "TASK": "saliency",
@@ -29,10 +26,7 @@
       8,
       16,
       32
-    ],
-    "ACTIVATION": "relu",
-    "LAST_ACTIVATION": "sigmoid",
-    "NAME": "DEFAULT_SALIENCY_NAME"
+    ]
   },
   "flat_autoencoder": {
     "TASK": "flat_autoencoder",
@@ -46,11 +40,7 @@
       16,
       32,
       64
-    ],
-    "ACTIVATION": "relu",
-    "LAST_ACTIVATION": "sigmoid",
-    "OUTPUT_CANALS": 1,
-    "NAME": "DEFAULT_SALIENCY_NAME"
+    ]
   },
   "mnist": {
     "TASK": "categorizer",
@@ -68,11 +58,7 @@
     "DENSE_LAYERS": [
       32,
       16
-    ],
-    "OUTPUT_CANALS": 3,
-    "ACTIVATION": "relu",
-    "LAST_ACTIVATION": "softmax",
-    "NAME": "DEFAULT_MNIST_NAME"
+    ]
   },
   "categorizer": {
     "TASK": "categorizer",
@@ -91,11 +77,7 @@
     "DENSE_LAYERS": [
       256,
       256
-    ],
-    "OUTPUT_CANALS": 3,
-    "ACTIVATION": "relu",
-    "LAST_ACTIVATION": "softmax",
-    "NAME": "DEFAULT_CATEGORIZER_NAME"
+    ]
   },
   "style_transfer": {
     "TASK": "style_transfer",
@@ -110,11 +92,7 @@
       32,
       64
     ],
-    "OUTPUT_CANALS": 1,
-    "ACTIVATION": "relu",
-    "LAST_ACTIVATION": "sigmoid",
-    "NAME": "DEFAULT_UNET_NAME",
-    "SCALING": 1
+    "OUTPUT_CANALS": 1
   },
   "speech_recognition": {
     "TASK": "categorizer",
@@ -128,10 +106,7 @@
       16,
       16,
       32
-    ],
-    "ACTIVATION": "relu",
-    "LAST_ACTIVATION": "softmax",
-    "NAME": "DEFAULT_CATEGORIZER_NAME"
+    ]
   },
   "bimode": {
     "TASK": "bimode",
@@ -151,32 +126,7 @@
       256,
       256
     ],
-    "OUTPUT_CANALS": 3,
-    "ACTIVATION": "relu",
-    "NAME": "DEFAULT_BIMODE_NAME"
-  },
-  "growing": {
-    "TASK": "growing",
-    "INPUT_SHAPE": [
-      256,
-      256,
-      3
-    ],
-    "CONV_LAYERS": [
-      32,
-      64,
-      128,
-      256,
-      256
-    ],
-    "DENSE_LAYERS": [
-      256,
-      256
-    ],
-    "OUTPUT_CANALS": 3,
-    "ACTIVATION": "relu",
-    "LAST_ACTIVATION": "softmax",
-    "NAME": "DEFAULT_GROWING_NAME"
+    "OUTPUT_CANALS": 3
   },
   "inceptionV3": {
     "TASK": "inceptionV3",
@@ -185,8 +135,7 @@
       512,
       512,
       1
-    ],
-    "NAME": "DEFAULT_INCEPTION_NAME"
+    ]
   },
   "inceptionV3_fine-tuning": {
     "TASK": "inceptionV3",
@@ -195,9 +144,7 @@
       224,
       224,
       3
-    ],
-    "OUTPUT_CANALS": 3,
-    "NAME": "DEFAULT_INCEPTION_NAME"
+    ]
   },
   "inceptionV3_transfer-learning": {
     "TASK": "inceptionV3",
@@ -206,8 +153,6 @@
       224,
       224,
       3
-    ],
-    "OUTPUT_CANALS": 3,
-    "NAME": "DEFAULT_INCEPTION_NAME"
+    ]
   }
 }

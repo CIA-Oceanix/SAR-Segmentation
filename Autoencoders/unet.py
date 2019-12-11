@@ -16,39 +16,46 @@ LOAD = False
 LEARNING_RATE = 10 ** -4
 
 CONFIG_KEY = 'autoencoder'
-CONFIG =get_config()[CONFIG_KEY]
+CONFIG = get_config()[CONFIG_KEY]
+DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 
 def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
-                 config=CONFIG, name=CONFIG['NAME']):
+                 config=CONFIG, name=DEFAULT_NAME):
     weight_filename = os.path.join(weight_root, f"{name}.h5")
     summary_filename = os.path.join(summary_root, f"{name}.txt")
     convs = []
     block = None
 
-    inputs = Input(config['INPUT_SHAPE'])
-    # encoder
-    for neurons in config['CONV_LAYERS']:
-        if block is None:
-            block, conv = convolution_block(inputs, neurons, activation=config['ACTIVATION'], maxpool=True)
-        else:
-            block, conv = convolution_block(block, neurons, activation=config['ACTIVATION'], maxpool=True)
-        convs.append(conv)
-
-    # central
-    block, conv = convolution_block(block, config['CONV_LAYERS'][-1] * 2, activation=config['ACTIVATION'],
-                                    maxpool=False)
-
-    # decoder
-    for neurons, previous_conv in zip(config['CONV_LAYERS'][::-1], convs[::-1]):
-        block = deconvolution_block(block, previous_conv, neurons, activation=config['ACTIVATION'])
-    conv_layer = Conv2D(config['OUTPUT_CANALS'], (1, 1), activation=config['LAST_ACTIVATION'])(block)
-
-    model = Model(inputs=[inputs], outputs=[conv_layer])
-    if config['OUTPUT_CANALS'] == 1:
+    conv_layers = config['CONV_LAYERS']
+    input_shape = config.get('INPUT_SHAPE', (256, 256, 3))
+    activation = config.get('ACTIVATION', 'relu')
+    last_activation = config.get('ACTIVATION', 'sigmoid')
+    output_canals = config.get('OUTPUT_CANALS', input_shape[-1])
+    
+    if output_canals == 1:
         loss = dice_coef_loss
     else:
         loss = 'mse'
+
+    inputs = Input(input_shape)
+    # encoder
+    for neurons in conv_layers:
+        if block is None:
+            block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=True)
+        else:
+            block, conv = convolution_block(block, neurons, activation=activation, maxpool=True)
+        convs.append(conv)
+
+    # central
+    block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False)
+
+    # decoder
+    for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
+        block = deconvolution_block(block, previous_conv, neurons, activation=activation)
+    conv_layer = Conv2D(output_canals, (1, 1), activation=last_activation)(block)
+
+    model = Model(inputs=[inputs], outputs=[conv_layer])
     model.compile(optimizer=Adam(lr=learning_rate), loss=loss)
 
     model.name = name
