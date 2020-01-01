@@ -52,7 +52,7 @@ def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_RO
     model = Model(inputs=input_layer, outputs=block)
 
     sgd = SGD(lr=learning_rate, momentum=0.5, nesterov=True)
-    model.compile(optimizer=sgd, loss='mse', metrics=['accuracy'])
+    model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['accuracy'])
 
     model.name = name
     model.weight_filename = weight_filename

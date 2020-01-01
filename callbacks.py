@@ -104,7 +104,7 @@ class ClassificationExampleCallback(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         example = next(self.generator)
-        plot_categorizer_example(example[0], self.model.predict(example[0]), self.model.labels)
+        plot_categorizer_example(example, self.model.predict(example[0]), self.model.labels)
         plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()

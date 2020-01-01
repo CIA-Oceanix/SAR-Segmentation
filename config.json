@@ -17,8 +17,8 @@
   "saliency": {
     "TASK": "saliency",
     "INPUT_SHAPE": [
-      256,
-      256,
+      192,
+      192,
       3
     ],
     "CONV_LAYERS": [
@@ -31,9 +31,9 @@
   "flat_autoencoder": {
     "TASK": "flat_autoencoder",
     "INPUT_SHAPE": [
-      392,
-      392,
-      1
+      256,
+      256,
+      3
     ],
     "CONV_LAYERS": [
       8,
@@ -132,27 +132,21 @@
     "TASK": "inceptionV3",
     "IMAGENET": false,
     "INPUT_SHAPE": [
-      512,
-      512,
+      256,
+      256,
       1
     ]
   },
-  "inceptionV3_fine-tuning": {
-    "TASK": "inceptionV3",
-    "IMAGENET": "fine-tuning",
+  "regressor": {
+    "TASK": "regressor",
+    "IMAGENET": false,
     "INPUT_SHAPE": [
-      224,
-      224,
+      256,
+      256,
       3
-    ]
-  },
-  "inceptionV3_transfer-learning": {
-    "TASK": "inceptionV3",
-    "IMAGENET": "transfer-learning",
-    "INPUT_SHAPE": [
-      224,
-      224,
-      3
-    ]
+    ],
+    "LAYER_NUMBER": 18,
+    "OUTPUT_CANALS": 512,
+    "GAN_FILENAME": false
   }
 }

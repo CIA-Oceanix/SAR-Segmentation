@@ -87,10 +87,10 @@ class ExampleCallback(Callback):
 
 def plot_example(input_images, prediction, labels, groundtruth):
     n = input_images.shape[0]
-    input_images = input_images[:, :, :, ::-1]
-    prediction_images = prediction[1][:, :, :, ::-1]
+    input_images = input_images
+    prediction_images = prediction[1]
     prediction_labels = prediction[0]
-    groundtruth_images = groundtruth[1][:, :, :, ::-1]
+    groundtruth_images = groundtruth[1]
     groundtruth_labels = groundtruth[0]
 
     plt.figure(figsize=(20, 10))
@@ -111,6 +111,7 @@ def plot_example(input_images, prediction, labels, groundtruth):
         plt.imshow(groundtruth_image)
 
         plt.subplot(4, n, 1 + i + 3 * n)
-        plt.barh(labels, prediction_label, tick_label=tick_label)
+        plt.barh(labels, groundtruth_label, tick_label=tick_label, color='C1')
+        plt.barh(labels, prediction_label, tick_label=tick_label, color='C0')
         plt.xlim(0, 1)
     plt.tight_layout()

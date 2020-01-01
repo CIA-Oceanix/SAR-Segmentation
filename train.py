@@ -20,7 +20,9 @@ from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator
 from Rignak_DeepLearning.BiOutput.callbacks import ExampleCallback as BimodeExampleCallback
 from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHistoryCallback
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
-    thumbnail_generator as thumb_generator, normalize_generator, augment_generator
+    thumbnail_generator as thumb_generator, normalize_generator, augment_generator, regressor_generator, \
+    rotsym_augmentor
+from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
 from Rignak_DeepLearning.config import get_config
 
 """
@@ -34,10 +36,10 @@ from Rignak_DeepLearning.config import get_config
 """
 
 BATCH_SIZE = 8
-TRAINING_STEPS = 2500
-VALIDATION_STEPS = 250
-EPOCHS = 2000
-INITIAL_EPOCH = 15
+TRAINING_STEPS = 2000
+VALIDATION_STEPS = 500
+EPOCHS = 1000
+INITIAL_EPOCH = 0
 
 DEFAULT_INPUT_SHAPE = (256, 256, 3)
 DEFAULT_SCALING = 1
@@ -75,6 +77,13 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
         callback_generator = bimode_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
         return train_generator, val_generator, callback_generator, train_folder
 
+    def get_regressor_generator():
+        train_generator = regressor_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
+        val_generator = regressor_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        callback_generator = regressor_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        return train_generator, val_generator, callback_generator, train_folder
+
+    print('CREATING THE GENERATORS')
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
     scaling = config[task].get('SCALING', default_scaling)
     train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
@@ -86,6 +95,7 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
                  "inceptionV3": get_categorizer_generators,
                  "style_transfer": get_style_transfer_generators,
                  "bimode": get_bimode_generator,
+                 "regressor": get_regressor_generator,
                  }
     return functions[task]()
 
@@ -119,14 +129,21 @@ def get_data_augmentation(task, train_generator, val_generator, callback_generat
         new_train_generator = normalize_generator(
             augment_generator(train_generator, noise_function=noise_function, apply_on_output=False),
             normalization_function, apply_on_output=False)
-        new_val_generator = normalize_generator(
-            augment_generator(val_generator, noise_function=noise_function, apply_on_output=False),
-            normalization_function, apply_on_output=False)
+        new_val_generator = normalize_generator(val_generator, normalization_function, apply_on_output=False)
         new_callback_generator = normalize_generator(
             augment_generator(callback_generator, noise_function=noise_function, apply_on_output=False),
             normalization_function, apply_on_output=False)
+
+        # new_train_generator = rotsym_augmentor(new_train_generator)
+        # new_val_generator = rotsym_augmentor(new_val_generator)
+        # new_callback_generator = rotsym_augmentor(new_callback_generator)
+
         return new_train_generator, new_val_generator, new_callback_generator
 
+    def get_regressor_augmentation():
+        return train_generator, val_generator, callback_generator
+
+    print('ADD DATA-AUGMENTATION')
     normalization_function = intensity_normalization()[0]
     noise_function = get_uniform_noise_function()
 
@@ -137,6 +154,7 @@ def get_data_augmentation(task, train_generator, val_generator, callback_generat
                  "categorizer": get_categorizer_augmentation,
                  "inceptionV3": get_categorizer_augmentation,
                  "bimode": get_bimode_augmentation,
+                 "regressor": get_regressor_augmentation,
                  }
     return functions[task]()
 
@@ -161,8 +179,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
 
     def get_categorizer_model():
         if task == 'inceptionV3':
-            model = InceptionV3(input_shape, len(labels), name, load=load,
-                                imagenet=config[task].get('IMAGENET', False))
+            model = InceptionV3(input_shape, len(labels), name, load=load, imagenet=config[task].get('IMAGENET', False))
         else:
             model = import_categorizer(len(labels), config=config[task], name=name, load=load)
         model.labels = labels
@@ -173,7 +190,13 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         model.labels = labels
         return model
 
-    labels = os.listdir(train_folder)
+    def get_regressor_model():
+        model = InceptionV3(input_shape, output_canals, name, load=load, imagenet=config[task].get('IMAGENET', False),
+                            last_activation='linear', loss='mse', metrics=[])
+        return model
+
+    print('SYNTHETIZE THE MODELS')
+    labels = [folder for folder in os.listdir(train_folder) if os.path.isdir(os.path.join(train_folder, folder))]
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
     output_canals = config[task].get('OUTPUT_CANALS')
 
@@ -184,11 +207,12 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
                  "categorizer": get_categorizer_model,
                  "inceptionV3": get_categorizer_model,
                  "bimode": get_bimode_model,
+                 "regressor": get_regressor_model,
                  }
     return functions[task]()
 
 
-def get_callbacks(task, model, callback_generator):
+def get_callbacks(config, task, model, callback_generator):
     def get_im2im_callbacks():
         callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
@@ -209,6 +233,17 @@ def get_callbacks(task, model, callback_generator):
                      ClassificationExampleCallback(callback_generator)]
         return callbacks
 
+    def get_regressor_callback():
+        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
+                     HistoryCallback(),
+                     GanRegressorExampleCallback(callback_generator,
+                                                 gan_filename=config[task]["GAN_FILENAME"],
+                                                 layer_number=config[task].get('LAYER_NUMBER', 1),
+                                                 truncation_psi=config[task].get("TRUNCATION_PSI", 1)
+                                                 )]
+        return callbacks
+
+    print('PUTING LANDMARKS')
     functions = {"saliency": get_im2im_callbacks,
                  "autoencoder": get_im2im_callbacks,
                  "flat_autoencoder": get_im2im_callbacks,
@@ -216,6 +251,7 @@ def get_callbacks(task, model, callback_generator):
                  "categorizer": get_categorizer_callbacks,
                  "inceptionV3": get_categorizer_callbacks,
                  "bimode": get_bimode_callbacks,
+                 "regressor": get_regressor_callback,
                  }
     return functions[task]()
 
@@ -224,7 +260,7 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
          training_steps=TRAINING_STEPS, validation_steps=VALIDATION_STEPS, initial_epoch=INITIAL_EPOCH,
          **kwargs):
     config = get_config()
-    for key, value in kwargs:
+    for key, value in kwargs.items():
         config[task][key] = value
     task = config[task]['TASK']
 
@@ -234,8 +270,8 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
                                                                                callback_generator)
     name = f'{dataset}_{task}'
     model = get_models(config, task, name, train_folder, load=initial_epoch != 0)
-    callbacks = get_callbacks(task, model, callback_generator)
-
+    callbacks = get_callbacks(config, task, model, callback_generator)
+    print('FIRIN MAH LASER')
     train(model, train_generator, val_generator, callbacks,
           epochs=epochs, training_steps=training_steps, validation_steps=validation_steps, initial_epoch=initial_epoch)
 

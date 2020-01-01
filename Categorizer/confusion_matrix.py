@@ -8,8 +8,7 @@ LIMIT = 1000
 MEAN_CLUSTER_SIZE = 3
 GAMMAS = [x / 10 for x in range(20, 0, -1)]
 
-
-GAMMAS = [1.2]
+GAMMAS = [0.7]
 
 
 def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
@@ -26,9 +25,6 @@ def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
             predictions = predictions[0]
             groundtruths = groundtruths[0]
         for groundtruth, prediction in zip(groundtruths, predictions):
-            if groundtruth.shape[0] == 2:
-                groundtruth = groundtruth[0]
-                prediction = prediction[0]
             groundtruth_arg = np.argmax(groundtruth)
             prediction_arg = np.argmax(prediction)
             confusion_matrix[groundtruth_arg, prediction_arg] += 1
@@ -41,6 +37,8 @@ def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
 
 
 def plot_confusion_matrix(confusion_matrix, labels=None, clustering=True):
+    if len(labels) == 2:
+        clustering = False
     if clustering:
         confusion_matrix, labels, lines = create_clusters(confusion_matrix, labels)
 
@@ -72,7 +70,7 @@ def plot_confusion_matrix(confusion_matrix, labels=None, clustering=True):
 def create_clusters(confusion_matrix, labels, mean_cluster_size=MEAN_CLUSTER_SIZE, gammas=GAMMAS):
     def get_lines(indexs):
         lines = [0]
-        current_index = 1
+        current_index = 0
         for index in indexs:
             if current_index == index:
                 lines[-1] += 1

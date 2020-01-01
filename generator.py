@@ -8,8 +8,8 @@ from Rignak_DeepLearning.data import read
 
 BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
-ZOOM = 0.0
-ROTATION = 0
+ZOOM = 0.2
+ROTATION = 20
 
 
 def autoencoder_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
@@ -27,7 +27,7 @@ def make_categorizer_output(index, label_number):
 
 
 def categorizer_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
-    folders = os.listdir(root)
+    folders = [folder for folder in os.listdir(root) if os.path.isdir(os.path.join(root, folder))]
     tags = {os.path.join(root, folder, filename): make_categorizer_output(folders.index(folder), len(folders))
             for folder in folders
             for filename in os.listdir(os.path.join(root, folder))}
@@ -38,7 +38,6 @@ def categorizer_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
 
         batch_input = np.array([read(path, input_shape=input_shape) for path in batch_path])
         batch_output = np.array([tags[filename] for filename in batch_path])
-
         yield batch_input, batch_output
 
 
@@ -86,7 +85,7 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
         input_shape = batch_input.shape[1:3]
 
         angles = (np.random.random(size=batch_input.shape[0]) - 0.5) * rotation
-        zooms = np.random.random(size=batch_input.shape[0]) * zoom_factor + 1
+        zooms = 1 + (np.random.random(size=batch_input.shape[0]) - 0.5) * zoom_factor * 2
         h_flips = np.random.randint(0, 2, size=batch_input.shape[0])
 
         for i, (input_, output, angle, zoom, h_flip) in \
@@ -163,4 +162,26 @@ def thumbnail_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, in
                 y_offset = np.random.randint(0, input_.shape[1] - input_shape[1])
             batch_input[i] = input_[x_offset:x_offset + input_shape[0], y_offset:y_offset + input_shape[1]]
             batch_output[i] = output[x_offset:x_offset + input_shape[0], y_offset:y_offset + input_shape[1]]
+        yield batch_input, batch_output
+
+
+def rotsym_augmentor(generator):
+    while True:
+        batch_input, batch_output = next(generator)
+        symmetries = np.random.randint(0, 2, size=(batch_input.shape[0], 2)) * 2 - 1
+        rotations = np.random.randint(0, 4, size=(batch_input.shape[0]))
+        for i, ((vertical_symmetry, horizontal_symmetry), rotation) in enumerate(zip(symmetries, rotations)):
+            batch_input[i] = np.rot90(batch_input[i, ::vertical_symmetry, ::vertical_symmetry], k=rotation)
+            # batch_output[i] = np.rot90(batch_output[i, ::vertical_symmetry, ::vertical_symmetry], k=rotation)
+        yield batch_input, batch_output
+
+
+def regressor_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
+    input_filenames = np.array(glob.glob(os.path.join(root, '*', '*.png')) + glob.glob(os.path.join(root, '*.png')))
+    output_filenames = np.array([os.path.splitext(filename)[0] + ".npy" for filename in input_filenames])
+    while True:
+        filenames_index = np.random.randint(0, len(input_filenames), size=batch_size)
+
+        batch_input = np.array([read(filename, input_shape) for filename in input_filenames[filenames_index]])
+        batch_output = np.array([np.load(filename)[0] for filename in output_filenames[filenames_index]])
         yield batch_input, batch_output

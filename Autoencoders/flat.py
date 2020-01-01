@@ -49,8 +49,8 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     if 'saliency' in name and os.path.exists(pretrained_model_filename):
         print('Found a flat_autoencoder model, will proceed to load it')
         model = load_model(pretrained_model_filename)
-        for layer in model.layers[:len(conv_layers) * 3 + 1]:
-            layer.trainable = False
+        # for layer in model.layers[:len(conv_layers) * 3 + 1]:
+        #     layer.trainable = False
         inputs = model.input
         block = model.layers[-2].output
     else:

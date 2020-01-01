@@ -19,25 +19,45 @@ import skimage
 
 from Rignak_Misc.path import get_local_file
 
-DEFAULT_MODEL = '2019-02-26-stylegan-faces-network-02048-016041.pkl'
-LAYER_NUMBER = 16
+DEFAULT_MODEL = 'network-snapshot-010022.pkl'
+LAYER_NUMBER = 12
 RESULT_ROOT = get_local_file(__file__, 'results')
-TRUNCATION_PSI = 0.7
-NUMBER_OF_PICTURES = 20
-THUMB_SIZE = 256
+TRUNCATION_PSI = 1.0
+THUMB_SIZE = 128
+
+### Add labels
+LABELS = [(label, np.eye(8)[i])
+          for i, label in enumerate(("Blue Mountain", "Chino", "Chiya", "Cocoa", "Maya", "Megumi", "Rize", "Sharo"))]
+
+# Add even combination labels
+LABELS.append((f"{LABELS[2][0]}+{LABELS[6][0]}", LABELS[2][1] + LABELS[6][1]))
+LABELS.append((f"0.5x{LABELS[2][0]}+0.5x{LABELS[6][0]}", 0.5 * LABELS[2][1] + 0.5 * LABELS[6][1]))
+LABELS.append((f"{LABELS[2][0]}+{LABELS[6][0]}", LABELS[2][1] + LABELS[6][1]))
+
+# Add uneven combinations
+for a, b in [(0.0, 1.0), (0.25, 0.75), (0.5, 0.5), (0.75, 0.25)]:
+    LABELS.append((f"{a}x{LABELS[2][0]}+{b}x{LABELS[6][0]}", a * LABELS[2][1] + b * LABELS[6][1]))
+
+# Add ALL and NONE
+LABELS.append((f"None", np.zeros(8)))
+LABELS.append((f"All", np.ones(8)))
+
+NUMBER_OF_PICTURES = 10 * len(LABELS)
+
 
 def get_generative(model, truncation_psi=TRUNCATION_PSI):
-    def generative(latents):
+    def generative(latents, label_input=None):
         if len(latents.shape) == 1:
             latents = np.expand_dims(latents, 0)
-        return model.run(latents, None, randomize_noise=False, truncation_psi=truncation_psi, use_noise=False, output_transform=fmt)
+        return model.run(latents, label_input, randomize_noise=False, truncation_psi=truncation_psi, use_noise=False,
+                         output_transform=fmt)
 
     fmt = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
     return generative
 
 
 def main(model_filename=DEFAULT_MODEL, truncation_psi=TRUNCATION_PSI, result_root=RESULT_ROOT,
-         number_of_pictures=NUMBER_OF_PICTURES, thumb_size=THUMB_SIZE):
+         number_of_pictures=NUMBER_OF_PICTURES, thumb_size=THUMB_SIZE, labels=LABELS):
     """
     Create images from a given model
 
@@ -55,26 +75,32 @@ def main(model_filename=DEFAULT_MODEL, truncation_psi=TRUNCATION_PSI, result_roo
     # Load pre-trained network.
     with open(model_filename, 'rb') as f:
         _, _, Gs = pickle.load(f)
+        for layer in Gs.list_layers():
+            print(layer[0])
     generative = get_generative(Gs, truncation_psi=truncation_psi)
 
-    layers = {name:tensor for name, tensor, _ in Gs.list_layers()}
+    layers = {name: tensor for name, tensor, _ in Gs.list_layers()}
     for i in tqdm.trange(number_of_pictures):
+        label_name, label_input = labels[i % len(labels)]
+        label_input = np.expand_dims(label_input, axis=0)
+        label_input = label_input.astype(float)
         latents = np.random.randn(1, Gs.input_shape[1])
 
         # Generate image.
-        images = generative(latents)
-        truncation_output = tflib.run(layers['Truncation'], feed_dict={layers['latents_in']:latents})
+        images = generative(latents, label_input=label_input)
+        truncation_output = tflib.run(layers['Truncation'], feed_dict={layers['latents_in']: latents,
+                                                                       layers['labels_in']: label_input})
 
         # Save image.
-        filename = os.path.join(result_root, os.path.splitext(os.path.split(model_filename)[-1])[0] + f'{i}')
+        filename = os.path.join(result_root,
+                                f"{os.path.splitext(os.path.split(model_filename)[-1])[0]}_{label_name}_{i}")
         if images.shape[-1] == 1:
-            image = skimage.transform.resize(images[0,:,:,0], (thumb_size, thumb_size))
+            image = skimage.transform.resize(images[0, :, :, 0], (thumb_size, thumb_size))
             im = PIL.Image.fromarray(image)
             im.save(f"{filename}.png")
         else:
             image = PIL.Image.fromarray(images[0], 'RGB')
             image.resize((thumb_size, thumb_size), PIL.Image.BICUBIC).save(f"{filename}.png")
-        #np.save(f'{filename}_1.npy', latents[0])
         np.save(f'{filename}.npy', truncation_output[0])
 
 

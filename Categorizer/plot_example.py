@@ -4,7 +4,9 @@ from Rignak_Misc.plt import imshow
 
 LIMIT = 8
 
-def plot_example(input_, prediction, labels, limit=LIMIT):
+
+def plot_example(example, prediction, labels, limit=LIMIT):
+    input_, truth = example
     input_ = input_[:limit]
     n = input_.shape[0]
     plt.figure(figsize=(18, 8))
@@ -18,6 +20,7 @@ def plot_example(input_, prediction, labels, limit=LIMIT):
         imshow(im)
 
         plt.subplot(2, n, i + 1 + n)
-        plt.barh(labels, classes, tick_label=tick_label)
+        plt.barh(labels, truth[i], tick_label=tick_label, color='C1')
+        plt.barh(labels, classes, tick_label=tick_label, color='C0')
         plt.xlim(0, 1)
     plt.tight_layout()

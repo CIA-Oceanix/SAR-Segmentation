@@ -1,7 +1,6 @@
 import tensorflow as tf
 import numpy as np
 import dnnlib.tflib as tflib
-import PIL.Image
 from functools import partial
 
 LAYER_NUMBER = 18

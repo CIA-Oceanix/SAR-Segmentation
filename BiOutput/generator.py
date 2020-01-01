@@ -22,7 +22,6 @@ def generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
             for folder in folders
             for filename in os.listdir(os.path.join(root, folder))}
     filenames = list(tags.keys())
-
     while True:
         batch_path = np.random.choice(filenames, size=batch_size)
 

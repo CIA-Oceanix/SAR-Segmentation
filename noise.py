@@ -1,6 +1,6 @@
 import numpy as np
 
-DEFAULT_NOSE = 0.0
+DEFAULT_NOSE = 0.15
 DEFAULT_DISABLE_PIXEL = 1/3
 
 def get_uniform_noise_function(f=DEFAULT_NOSE):

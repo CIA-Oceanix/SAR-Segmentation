@@ -52,8 +52,8 @@ def import_model(output_canals, labels, weight_root=WEIGHT_ROOT, summary_root=SU
 
     model = Model(inputs=input_layer, outputs=[categorizer_block, decoder_block])
 
-    losses = {"categorizer_block": "mse", "decoder_block": "mse"}
-    loss_weights = {"categorizer_block": 1.0, "decoder_block": 0.1}
+    losses = {"categorizer_block": "categorical_crossentropy", "decoder_block": "mse"}
+    loss_weights = {"categorizer_block": 1.0, "decoder_block": 1.}
     model.compile(optimizer=Adam(lr=learning_rate), loss=losses, loss_weights=loss_weights,
                   metrics={'categorizer_block': 'accuracy'})
 
