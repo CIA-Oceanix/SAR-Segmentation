@@ -15,6 +15,7 @@ from Rignak_DeepLearning.Autoencoders.unet import import_model as import_unet_mo
 from Rignak_DeepLearning.Categorizer.flat import import_model as import_categorizer
 from Rignak_DeepLearning.Categorizer.inception import import_model_v3 as InceptionV3
 from Rignak_DeepLearning.BiOutput.flat import import_model as import_bimode
+from Rignak_DeepLearning.BiOutput.multiscale_autoencoder import import_model as import_multiscale_bimode
 from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator, \
     normalize_generator as bimode_normalize, augment_generator as bimode_augment
 from Rignak_DeepLearning.BiOutput.callbacks import ExampleCallback as BimodeExampleCallback
@@ -22,7 +23,7 @@ from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHist
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
     thumbnail_generator as thumb_generator, normalize_generator, augment_generator, regressor_generator, \
     rotsym_augmentor
-from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
+#from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
 from Rignak_DeepLearning.config import get_config
 
 """
@@ -95,6 +96,7 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
                  "inceptionV3": get_categorizer_generators,
                  "style_transfer": get_style_transfer_generators,
                  "bimode": get_bimode_generator,
+                 "multiscale_bimode": get_bimode_generator,
                  "regressor": get_regressor_generator,
                  }
     return functions[task]()
@@ -123,6 +125,11 @@ def get_data_augmentation(task, train_generator, val_generator, callback_generat
         new_callback_generator = bimode_normalize(
             bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True),
             normalization_function, apply_on_output=True)
+
+        # new_train_generator = bimode_normalize(train_generator, normalization_function, apply_on_output=True)
+        # new_val_generator = bimode_normalize(val_generator, normalization_function, apply_on_output=True)
+        # new_callback_generator = bimode_normalize(callback_generator, normalization_function, apply_on_output=True)
+
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_categorizer_augmentation():
@@ -154,6 +161,7 @@ def get_data_augmentation(task, train_generator, val_generator, callback_generat
                  "categorizer": get_categorizer_augmentation,
                  "inceptionV3": get_categorizer_augmentation,
                  "bimode": get_bimode_augmentation,
+                 "multiscale_bimode": get_bimode_augmentation,
                  "regressor": get_regressor_augmentation,
                  }
     return functions[task]()
@@ -190,6 +198,11 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         model.labels = labels
         return model
 
+    def get_multiscale_bimode_model():
+        model = import_multiscale_bimode(output_canals, labels, config=config[task], name=name, load=load)
+        model.labels = labels
+        return model
+
     def get_regressor_model():
         model = InceptionV3(input_shape, output_canals, name, load=load, imagenet=config[task].get('IMAGENET', False),
                             last_activation='linear', loss='mse', metrics=[])
@@ -197,9 +210,9 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
 
     print('SYNTHETIZE THE MODELS')
     labels = [folder for folder in os.listdir(train_folder) if os.path.isdir(os.path.join(train_folder, folder))]
+    print('labels:', labels)
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
     output_canals = config[task].get('OUTPUT_CANALS')
-
     functions = {"saliency": get_saliency_model,
                  "autoencoder": get_autoencoder_model,
                  "flat_autoencoder": get_autoencoder_model,
@@ -207,6 +220,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
                  "categorizer": get_categorizer_model,
                  "inceptionV3": get_categorizer_model,
                  "bimode": get_bimode_model,
+                 "multiscale_bimode": get_multiscale_bimode_model,
                  "regressor": get_regressor_model,
                  }
     return functions[task]()
@@ -251,6 +265,7 @@ def get_callbacks(config, task, model, callback_generator):
                  "categorizer": get_categorizer_callbacks,
                  "inceptionV3": get_categorizer_callbacks,
                  "bimode": get_bimode_callbacks,
+                 "multiscale_bimode": get_bimode_callbacks,
                  "regressor": get_regressor_callback,
                  }
     return functions[task]()

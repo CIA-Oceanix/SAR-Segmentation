@@ -272,7 +272,7 @@ Cloned from https://github.com/eriklindernoren/Keras-GAN/tree/master/cyclegan
 
 ###### Outputs
 
-![](CycleGan/output/Lisara_example.png)
+![](GANs/output/Lisara_example.png)
 
 ### StyleGan
 

@@ -128,6 +128,23 @@
     ],
     "OUTPUT_CANALS": 3
   },
+  "multiscale_bimode": {
+    "TASK": "multiscale_bimode",
+    "INPUT_SHAPE": [
+      128,
+      128,
+      3
+    ],
+    "CONV_LAYERS": [
+      256,
+      256,
+      256,
+      256,
+      256
+    ],
+    "LATENT_SPACE": 8,
+    "OUTPUT_CANALS": 3
+  },
   "inceptionV3": {
     "TASK": "inceptionV3",
     "IMAGENET": false,

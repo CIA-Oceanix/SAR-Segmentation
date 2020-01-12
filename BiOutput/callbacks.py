@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 
 from keras.callbacks import Callback
 
+from Rignak_Misc.plt import imshow
+
 HISTORY_CALLBACK_ROOT = os.path.join('_outputs', 'history')
 EXAMPLE_CALLBACK_ROOT = os.path.join('_outputs', 'example')
 CONFUSION_CALLBACK_ROOT = os.path.join('_outputs', 'confusion')
@@ -34,13 +36,13 @@ class HistoryCallback(Callback):
         self.x.append(epoch)
         self.losses.append(logs.get('loss'))
         self.val_losses.append(logs.get('val_loss'))
-        self.categorizer_loss.append(logs.get('categorizer_block_loss'))
-        self.decoder_loss.append(logs.get('decoder_block_loss'))
-        self.val_categorizer_loss.append(logs.get('val_categorizer_block_loss'))
-        self.val_decoder_loss.append(logs.get('val_decoder_block_loss'))
+        self.categorizer_loss.append(logs.get('categorization_layer_loss'))
+        self.decoder_loss.append(logs.get('decoder_layer_loss'))
+        self.val_categorizer_loss.append(logs.get('val_categorization_layer_loss'))
+        self.val_decoder_loss.append(logs.get('val_decoder_layer_loss'))
 
-        self.accuracy.append(logs.get('categorizer_block_acc'))
-        self.val_accuracy.append(logs.get('val_categorizer_block_acc'))
+        self.accuracy.append(logs.get('categorization_layer_acc'))
+        self.val_accuracy.append(logs.get('val_categorization_layer_acc'))
 
         plt.subplot(1, 2, 2)
         plt.plot(self.x, self.accuracy, label="Training")
@@ -86,7 +88,7 @@ class ExampleCallback(Callback):
 
 
 def plot_example(input_images, prediction, labels, groundtruth):
-    n = input_images.shape[0]
+    n = min(8, input_images.shape[0])
     input_images = input_images
     prediction_images = prediction[1]
     prediction_labels = prediction[0]
@@ -96,19 +98,21 @@ def plot_example(input_images, prediction, labels, groundtruth):
     plt.figure(figsize=(20, 10))
     for i, (input_image, prediction_image, prediction_label, groundtruth_image, groundtruth_label) in enumerate(zip(
             input_images, prediction_images, prediction_labels, groundtruth_images, groundtruth_labels)):
+        if i == n:
+            break
         if i != 0:
             tick_label = [' ' for label in labels]
         else:
             tick_label = labels
 
         plt.subplot(4, n, 1 + i)
-        plt.imshow(input_image)
+        imshow(input_image)
 
         plt.subplot(4, n, 1 + i + n)
-        plt.imshow(prediction_image)
+        imshow(prediction_image)
 
         plt.subplot(4, n, 1 + i + 2 * n)
-        plt.imshow(groundtruth_image)
+        imshow(groundtruth_image)
 
         plt.subplot(4, n, 1 + i + 3 * n)
         plt.barh(labels, groundtruth_label, tick_label=tick_label, color='C1')

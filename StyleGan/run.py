@@ -15,22 +15,27 @@ import dnnlib.tflib as tflib
 import numpy as np
 import tqdm
 import tensorflow as tf
-import skimage
+
+from skimage import transform
 
 from Rignak_Misc.path import get_local_file
 
-DEFAULT_MODEL = '2019-02-26-stylegan-faces-network-02048-016041.pkl'
-LAYER_NUMBER = 16
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+
+DEFAULT_MODEL = 'sar_network-snapshot-008100.pkl'
+LAYER_NUMBER = 18
 RESULT_ROOT = get_local_file(__file__, 'results')
 TRUNCATION_PSI = 0.7
 NUMBER_OF_PICTURES = 20
-THUMB_SIZE = 256
+THUMB_SIZE = 512
+
 
 def get_generative(model, truncation_psi=TRUNCATION_PSI):
-    def generative(latents):
+    def generative(latents, noise=False):
         if len(latents.shape) == 1:
             latents = np.expand_dims(latents, 0)
-        return model.run(latents, None, randomize_noise=False, truncation_psi=truncation_psi, use_noise=False, output_transform=fmt)
+        return model.run(latents, None, randomize_noise=noise, truncation_psi=truncation_psi, use_noise=noise,
+                         output_transform=fmt)
 
     fmt = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
     return generative
@@ -57,25 +62,36 @@ def main(model_filename=DEFAULT_MODEL, truncation_psi=TRUNCATION_PSI, result_roo
         _, _, Gs = pickle.load(f)
     generative = get_generative(Gs, truncation_psi=truncation_psi)
 
-    layers = {name:tensor for name, tensor, _ in Gs.list_layers()}
+    layers = {name: tensor for name, tensor, _ in Gs.list_layers()}
     for i in tqdm.trange(number_of_pictures):
         latents = np.random.randn(1, Gs.input_shape[1])
 
         # Generate image.
         images = generative(latents)
-        truncation_output = tflib.run(layers['Truncation'], feed_dict={layers['latents_in']:latents})
+        truncation_output = tflib.run(layers['Truncation'], feed_dict={layers['latents_in']: latents})
 
-        # Save image.
-        filename = os.path.join(result_root, os.path.splitext(os.path.split(model_filename)[-1])[0] + f'{i}')
-        if images.shape[-1] == 1:
-            image = skimage.transform.resize(images[0,:,:,0], (thumb_size, thumb_size))
-            im = PIL.Image.fromarray(image)
-            im.save(f"{filename}.png")
-        else:
-            image = PIL.Image.fromarray(images[0], 'RGB')
-            image.resize((thumb_size, thumb_size), PIL.Image.BICUBIC).save(f"{filename}.png")
-        #np.save(f'{filename}_1.npy', latents[0])
-        np.save(f'{filename}.npy', truncation_output[0])
+        for j, images in enumerate([generative(latents, noise=False), generative(latents, noise=True),
+                                    generative(latents, noise=True), generative(latents, noise=True)]):
+            # Save image.
+            filename = os.path.join(result_root, f"{os.path.splitext(os.path.split(model_filename)[-1])[0]}_{i}_{j}")
+            if images.shape[-1] == 1:
+                image = transform.resize(images[0, :, :, 0], (thumb_size, thumb_size)) * 255
+                im = PIL.Image.fromarray(image).convert("L")
+                im.save(f"{filename}.png")
+            else:
+                image = PIL.Image.fromarray(images[0], 'RGB')
+                image.resize((thumb_size, thumb_size), PIL.Image.BICUBIC).save(f"{filename}.png")
+            np.save(f'{filename}.npy', truncation_output[0][0])
+
+        # check noise influence
+        amount4std = 100
+        variations = np.zeros((images.shape[1], images.shape[2], amount4std))
+        for j in range(amount4std):
+            variations[:, :, j] = np.mean(generative(latents, noise=True), axis=-1)
+        variations = np.std(variations, axis=-1)
+        variations = (variations - variations.min())/(variations.max()-variations.min())*255
+        filename = os.path.join(result_root, f"{os.path.splitext(os.path.split(model_filename)[-1])[0]}_{i}_std.png")
+        PIL.Image.fromarray(variations).convert("L").save(filename)
 
 
 if __name__ == "__main__":

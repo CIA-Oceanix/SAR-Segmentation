@@ -5,7 +5,8 @@ ACTIVATION = 'relu'
 DROPOUT = 0.5
 
 
-def convolution_block(layer, neurons, kernel_size=KERNEL_SIZE, activation=ACTIVATION, maxpool=True):
+def convolution_block(layer, neurons, kernel_size=KERNEL_SIZE, activation=ACTIVATION, 
+                      maxpool=True, batch_normalization=False):
     layer = Conv2D(neurons, kernel_size, activation=activation, padding='same')(layer)
     layer = Conv2D(neurons, kernel_size, activation=activation, padding='same')(layer)
     layer = Conv2D(neurons, kernel_size, activation=activation, padding='same')(layer)
@@ -13,11 +14,13 @@ def convolution_block(layer, neurons, kernel_size=KERNEL_SIZE, activation=ACTIVA
         block = MaxPooling2D(pool_size=(2, 2))(layer)
     else:
         block = layer
-    #block = BatchNormalization()(block)
+    if batch_normalization:
+        block = BatchNormalization()(block)
     return block, layer
 
 
-def deconvolution_block(layer, previous_conv, neurons, kernel_size=KERNEL_SIZE, activation=ACTIVATION, dropout=DROPOUT):
+def deconvolution_block(layer, previous_conv, neurons, kernel_size=KERNEL_SIZE, activation=ACTIVATION, 
+                        dropout=DROPOUT, batch_normalization=False):
     block = Conv2DTranspose(neurons, kernel_size, strides=(2, 2), padding='same')(layer)
     if previous_conv is not None:
         previous_conv = Dropout(dropout)(previous_conv)
@@ -25,5 +28,6 @@ def deconvolution_block(layer, previous_conv, neurons, kernel_size=KERNEL_SIZE, 
     block = Conv2D(neurons, kernel_size, activation=activation, padding='same')(block)
     block = Conv2D(neurons, kernel_size, activation=activation, padding='same')(block)
     block = Conv2D(neurons, kernel_size, activation=activation, padding='same')(block)
-    #block = BatchNormalization()(block)
+    if batch_normalization:
+        block = BatchNormalization()(block)
     return block

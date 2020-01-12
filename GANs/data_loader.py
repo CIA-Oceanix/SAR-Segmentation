@@ -4,12 +4,12 @@ import numpy as np
 import os
 import cv2
 
-from Rignak_DeepLearning.data import get_dataset_roots
+from Rignak_Misc.path import get_local_file
 
-DATASET_ROOT = get_dataset_roots('cyclegan')[0]
+DATASET_ROOT = get_local_file(__file__, '.')
 
 
-def augment_data(batch_input, zoom=0.2, rotation=45):
+def augment_data(batch_input, zoom=0.0, rotation=0):
     def uniform_noise(x, f=0.15):
         xmax = np.max(x)
         xmin = np.min(x)
@@ -46,11 +46,14 @@ class DataLoader():
         self.dataset_name = dataset_name
         self.img_res = img_res
 
-    def load_data(self, domain, batch_size=1, is_testing=False):
+    def load_data(self, domain, batch_size=1, is_testing=False, index=None):
         data_type = f"train{domain}" if not is_testing else f"val{domain}"
-        path = glob(os.path.join(DATASET_ROOT, self.dataset_name, f'{data_type}', '*'))
+        path = glob(os.path.join(DATASET_ROOT, self.dataset_name, f'{data_type}', '*.png'))
 
-        batch_images = np.random.choice(path, size=batch_size)
+        if index is None:
+            batch_images = np.random.choice(path, size=batch_size)
+        else:
+            batch_images = np.array(path)[index % len(path)]
 
         imgs = []
         for img_path in batch_images:
@@ -65,8 +68,8 @@ class DataLoader():
     def load_batch(self, batch_size=1, is_testing=False):
         data_type = "train" if not is_testing else "val"
 
-        path_A = glob(os.path.join(DATASET_ROOT, self.dataset_name, f'{data_type}A', '*'))
-        path_B = glob(os.path.join(DATASET_ROOT, self.dataset_name, f'{data_type}B', '*'))
+        path_A = glob(os.path.join(DATASET_ROOT, self.dataset_name, f'{data_type}A', '*.png'))
+        path_B = glob(os.path.join(DATASET_ROOT, self.dataset_name, f'{data_type}B', '*.png'))
 
         self.n_batches = int(min(len(path_A), len(path_B)) / batch_size)
         total_samples = self.n_batches * batch_size
@@ -74,10 +77,10 @@ class DataLoader():
         # Sample n_batches * batch_size from each path list so that model sees all
         # samples from both domains
 
-        path_A = np.random.choice(path_A, total_samples * 10)
-        path_B = np.random.choice(path_B, total_samples * 10)
+        path_A = np.random.choice(path_A, total_samples)
+        path_B = np.random.choice(path_B, total_samples)
 
-        for i in range(self.n_batches * 10 - 1):
+        for i in range(self.n_batches - 1):
             batch_A = path_A[i * batch_size:(i + 1) * batch_size]
             batch_B = path_B[i * batch_size:(i + 1) * batch_size]
             imgs_A, imgs_B = [], []
@@ -103,3 +106,4 @@ class DataLoader():
 
     def imread(self, path):
         return scipy.misc.imread(path, mode='RGB').astype(np.float)
+
