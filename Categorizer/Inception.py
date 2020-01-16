@@ -15,8 +15,10 @@ DEFAULT_LOSS = 'categorical_crossentropy'
 DEFAULT_METRICS = ['accuracy']
 LAST_ACTIVATION = 'softmax'
 
+
 def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
-                    imagenet=IMAGENET, loss=DEFAULT_LOSS, metrics=DEFAULT_METRICS, last_activation=LAST_ACTIVATION):
+                    imagenet=IMAGENET, loss=DEFAULT_LOSS, metrics=DEFAULT_METRICS, last_activation=LAST_ACTIVATION,
+                    class_weight=None):
     if imagenet:
         print('Will load imagenet weights')
         weights = "imagenet"
@@ -32,8 +34,10 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
     if imagenet == "fine-tuning":
         for layer in model.layers[:-1]:
             layer.trainable = False
-    model.compile(optimizer='adam', loss=loss, metrics=metrics)
-
+    if class_weight is not None:
+        model.compile(optimizer='adam', loss=loss, metrics=metrics, class_weight=class_weight)
+    else:
+        model.compile(optimizer='adam', loss=loss, metrics=metrics, class_weight=class_weight)
 
     if weights is None:
         model.name = f"{name}_False"

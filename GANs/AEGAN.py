@@ -25,7 +25,7 @@ class AEGAN():
     def __init__(self, image_shape, n_classes):
         self.img_rows = image_shape[0]
         self.img_cols = image_shape[1]
-        self.channels = 1
+        self.channels = image_shape[2]
         self.img_shape = image_shape
 
         self.latent_space_root_length = 8
@@ -159,11 +159,18 @@ def build_classifier(n_classes, latent_space_root_length, convs):
 
 
 def build_discriminator(img_shape):
-    base_model = InceptionV3(input_shape=img_shape, classes=1, include_top=False)
+    if img_shape[-1] == 1:
+        img_input = Input(shape=img_shape)
+        img_conc = Concatenate()([img_input, img_input, img_input])
+        base_model = InceptionV3(input_shape=(img_shape[0], img_shape[2], 3), classes=1, include_top=False)
+    else:
+        base_model = InceptionV3(input_shape=img_shape, classes=1, include_top=False)
+        img_input = base_model.input
+
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
     x = Dense(1, activation='sigmoid')(x)
-    model = Model(inputs=base_model.input, outputs=x, name="discriminator")
+    model = Model(inputs=img_input.input, outputs=x, name="discriminator")
     return model
 
 
@@ -221,5 +228,5 @@ def build_decoder(n_classes, latent_space_root_length, convs, img_shape):
 if __name__ == '__main__':
     dataset = sys.argv[1]
     ROOT = f"output/AEGAN_{dataset}"
-    gan = AEGAN((256, 256, 3), n_classes=10)
+    gan = AEGAN((256, 256, 1), n_classes=10)
     gan.train(dataset, epochs=10000, batch_size=8)

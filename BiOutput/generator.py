@@ -26,6 +26,9 @@ def generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
         batch_path = np.random.choice(filenames, size=batch_size)
 
         batch_input = np.array([read(path, input_shape=input_shape) for path in batch_path])
+        if input_shape[-1] == -1 and batch_input.shape[-1] != 1:
+            batch_input = np.mean(batch_input, axis=-1)
+            batch_input = np.expand_dims(batch_input, axis=-1)
         batch_image_output = batch_input.copy()
         batch_label_output = np.array([tags[filename] for filename in batch_path])
         batch_output = [batch_label_output, batch_image_output]

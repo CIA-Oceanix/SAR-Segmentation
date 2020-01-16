@@ -191,8 +191,11 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         return model
 
     def get_categorizer_model():
+        class_weight = {i: len(os.listdir(os.path.join(train_folder, folder)))
+                        for folder in os.listdir(train_folder) if os.path.isdir(os.path.join(train_folder, folder))}
         if task == 'inceptionV3':
-            model = InceptionV3(input_shape, len(labels), name, load=load, imagenet=config[task].get('IMAGENET', False))
+            model = InceptionV3(input_shape, len(labels), name, load=load, imagenet=config[task].get('IMAGENET', False),
+                                class_weight=class_weight)
         else:
             model = import_categorizer(len(labels), config=config[task], name=name, load=load)
         model.labels = labels
