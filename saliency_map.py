@@ -1,13 +1,17 @@
 import os
 import sys
 
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
+
 import PIL.Image
+from skimage.transform import resize
 import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm, trange
 from skimage.transform import resize
 
-import Rignak_DeepLearning.deprecation_warnings
+from Rignak_DeepLearning import deprecation_warnings
 from Rignak_DeepLearning.data import get_dataset_roots
 from Rignak_Misc.plt import imshow, COLORS
 
@@ -18,13 +22,17 @@ import keras.backend as K
 # STRIDE = 8
 DATASET = sys.argv[1]
 MODEL_FILENAME = f"{DATASET}_inceptionV3_False.h5"
+MODEL_FILENAME = "chen_inceptionV3_imagenet.h5"
+OUTPUT_DATASET = True
+OUTPUT_DATASET_SHAPE = (256, 256)
 
 OUTPUT_DATASET = True
 OUTPUT_DATASET_SHAPE = (256, 256)
 
 
 def get_process_image(model_filename=MODEL_FILENAME, mixed_id=3):
-    def process_image(im, minv=0.0, maxv=0.8):
+    def process_image(im, min=0.0, max=1.2):
+        im = np.concatenate((im,) * 3, axis=-1)
         pooled_gradients_value, feature_layer_value = get_gradients([np.expand_dims(im, axis=0)])
         for i in range(class_number):
             feature_layer_value[:, :, i] *= pooled_gradients_value[i]
@@ -72,6 +80,9 @@ def plot(k, filename, im, heatmap, dataset=DATASET):
 trainA_folder = os.path.join('_outputs', 'saliency_map', f"{DATASET}", "valA")
 trainB_folder = os.path.join('_outputs', 'saliency_map', f"{DATASET}", "valB")
 
+trainA_folder = os.path.join('_outputs', 'saliency_map', f"{DATASET}", "trainA")
+trainB_folder = os.path.join('_outputs', 'saliency_map', f"{DATASET}", "trainB")
+
 train_folder, val_folder = get_dataset_roots("inceptionV3", dataset=DATASET)
 labels = [folder for folder in os.listdir(val_folder) if os.path.isdir(os.path.join(val_folder, folder))]
 all_filenames = {label: os.listdir(os.path.join(val_folder, label)) for label in labels}
@@ -88,17 +99,19 @@ for k in tqdm([3]):
             filename = os.path.join(val_folder, label, filenames[label][j])
 
             im = np.array(PIL.Image.open(filename)) / 255
+            im = resize(im, (299, 299))
+
             if len(im.shape) == 2:
                 im = np.expand_dims(im, -1)
+            print(im.shape)
             heatmap = process_image(im)
             plot(k, filename, im, heatmap)
-            
             if OUTPUT_DATASET:
                 os.makedirs(trainA_folder, exist_ok=True)
                 os.makedirs(trainB_folder, exist_ok=True)
 
                 trainA_im = resize(im * 255, OUTPUT_DATASET_SHAPE).astype('uint8')
-                trainA_im = PIL.Image.fromarray(trainA_im[:,:,0])
+                trainA_im = PIL.Image.fromarray(trainA_im[:, :, 0])
                 trainA_im.save(os.path.join(trainA_folder, f"{label}{j}.png"))
 
                 heatmap = np.stack((heatmap, heatmap, heatmap), axis=-1)

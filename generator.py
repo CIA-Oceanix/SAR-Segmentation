@@ -1,15 +1,15 @@
 import numpy as np
 import cv2
 import os
-import scipy.misc
+from skimage.transform import resize
 import glob
 
 from Rignak_DeepLearning.data import read
 
 BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
-ZOOM = 0.2
-ROTATION = 20
+ZOOM = 0.0
+ROTATION = 0
 
 
 def autoencoder_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
@@ -149,8 +149,8 @@ def thumbnail_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, in
             output = read(output_filenames[filename_index])
             if scaling != 1 and input_.shape[0] * scaling > input_shape[0] \
                     and input_.shape[1] * scaling > input_shape[1]:
-                input_ = scipy.misc.imresize(input_, (int(input_.shape[0] * scaling), int(input_.shape[1] * scaling)))
-                output = scipy.misc.imresize(output, (int(output.shape[0] * scaling), int(output.shape[1] * scaling)))
+                input_ = resize(input_, (int(input_.shape[0] * scaling), int(input_.shape[1] * scaling)))
+                output = resize(output, (int(output.shape[0] * scaling), int(output.shape[1] * scaling)))
 
             if input_shape[0] == input_.shape[0]:
                 x_offset = 0

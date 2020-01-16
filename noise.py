@@ -1,9 +1,9 @@
 import numpy as np
 
-DEFAULT_NOSE = 0.15
+DEFAULT_NOISE = 0.
 DEFAULT_DISABLE_PIXEL = 1/3
 
-def get_uniform_noise_function(f=DEFAULT_NOSE):
+def get_uniform_noise_function(f=DEFAULT_NOISE):
     def uniform_noise(x):  # std is around 0.35
         xmax = np.max(x)
         xmin = np.min(x)

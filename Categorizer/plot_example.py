@@ -12,6 +12,7 @@ def plot_example(example, prediction, labels, limit=LIMIT):
     plt.figure(figsize=(18, 8))
     plt.tight_layout()
     for i, (im, classes) in enumerate(zip(input_, prediction)):
+        print('Callback:', im.min(), im.max(), im.mean())
         if i != 0:
             tick_label = [' ' for label in labels]
         else:

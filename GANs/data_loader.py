@@ -1,4 +1,6 @@
 import scipy
+import imageio
+
 from glob import glob
 import numpy as np
 import os
@@ -6,11 +8,11 @@ import cv2
 
 from Rignak_Misc.path import get_local_file
 
-DATASET_ROOT = get_local_file(__file__, '.')
+DATASET_ROOT = '.'
 
 
 def augment_data(batch_input, zoom=0.0, rotation=0):
-    def uniform_noise(x, f=0.15):
+    def uniform_noise(x, f=0.0):
         xmax = np.max(x)
         xmin = np.min(x)
         noise = f * x.std() * (2 * np.random.random(x.shape) - 1)
@@ -63,6 +65,11 @@ class DataLoader():
         imgs = augment_data(np.array(imgs))
         imgs = normalize(imgs)
 
+        if len(imgs.shape) == 3:
+            imgs = np.expand_dims(imgs, axis=-1)
+        if imgs.shape[-1] == 1:
+            imgs = imgs[:, :, :, [0, 0, 0]]
+
         return imgs
 
     def load_batch(self, batch_size=1, is_testing=False):
@@ -97,6 +104,16 @@ class DataLoader():
             imgs_A = normalize(imgs_A)
             imgs_B = normalize(imgs_B)
 
+            if len(imgs_B.shape) == 3:
+                imgs_B = np.expand_dims(imgs_B, axis=-1)
+            if len(imgs_A.shape) == 3:
+                imgs_A = np.expand_dims(imgs_A, axis=-1)
+
+            if imgs_A.shape[-1] == 1 and imgs_B.shape[-1] == 3:
+                imgs_A = imgs_A[:, :, :, [0, 0, 0]]
+            elif imgs_A.shape[-1] == 3 and imgs_B.shape[-1] == 1:
+                imgs_B = imgs_B[:, :, :, [0, 0, 0]]
+
             yield imgs_A, imgs_B
 
     def load_img(self, path):
@@ -105,5 +122,8 @@ class DataLoader():
         return img[np.newaxis, :, :, :]
 
     def imread(self, path):
-        return scipy.misc.imread(path, mode='RGB').astype(np.float)
-
+        try:
+            image = np.array(imageio.imread(path)).astype(np.float)
+        except ValueError as e:
+            print(f"data_loader.imread: Error {e} at {path}")
+        return image

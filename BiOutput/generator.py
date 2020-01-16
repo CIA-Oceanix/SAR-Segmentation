@@ -6,8 +6,8 @@ from Rignak_DeepLearning.data import read
 
 BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
-ZOOM = 0.2
-ROTATION = 20
+ZOOM = 0.0
+ROTATION = 0
 
 
 def make_categorizer_output(index, label_number):

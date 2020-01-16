@@ -32,7 +32,6 @@ def import_model(output_canals, labels, weight_root=WEIGHT_ROOT, summary_root=SU
     activation = config.get('ACTIVATION', 'relu')
 
     print('INPUT_SHAPE', input_shape)
-
     input_layer = Input(input_shape)
     latent_space_layers = []
     block = None
@@ -65,7 +64,7 @@ def import_model(output_canals, labels, weight_root=WEIGHT_ROOT, summary_root=SU
         else:
             block = latent_space_layer
         block, _ = convolution_block(block, neurons, activation=activation, maxpool=False)
-        if i != len(conv_layers)-1:
+        if i != len(conv_layers) - 1:
             block = UpSampling2D((2, 2))(block)
 
     decoder_layer = Conv2D(output_canals, (1, 1), activation='sigmoid', name='decoder_layer')(block)

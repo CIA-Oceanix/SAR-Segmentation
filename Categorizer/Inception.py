@@ -8,6 +8,7 @@ from keras.models import Model
 
 from Rignak_DeepLearning.Categorizer.flat import WEIGHT_ROOT, SUMMARY_ROOT
 
+# nohup python3.6 train.py inceptionV3 chen --IMAGENET=transfer --INPUT_SHAPE="(299,299,1)" > nohup_inception.out &
 LOAD = False
 IMAGENET = False
 DEFAULT_LOSS = 'categorical_crossentropy'

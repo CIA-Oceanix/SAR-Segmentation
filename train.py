@@ -1,11 +1,14 @@
-import os
+import os, sys
+
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+os.environ['CUDA_VISIBLE_DEVICES'] = '3'
 import fire
 
-import Rignak_DeepLearning.deprecation_warnings
+import deprecation_warnings
 
 from keras.callbacks import ModelCheckpoint
 
-from Rignak_DeepLearning.data import get_dataset_roots
+from data import get_dataset_roots
 from Rignak_DeepLearning.normalization import intensity_normalization
 from Rignak_DeepLearning.noise import get_uniform_noise_function
 from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCallback, ConfusionCallback, \
@@ -13,7 +16,7 @@ from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCal
 from Rignak_DeepLearning.Autoencoders.flat import import_model as import_flat_model
 from Rignak_DeepLearning.Autoencoders.unet import import_model as import_unet_model
 from Rignak_DeepLearning.Categorizer.flat import import_model as import_categorizer
-from Rignak_DeepLearning.Categorizer.inception import import_model_v3 as InceptionV3
+from Rignak_DeepLearning.Categorizer.Inception import import_model_v3 as InceptionV3
 from Rignak_DeepLearning.BiOutput.flat import import_model as import_bimode
 from Rignak_DeepLearning.BiOutput.multiscale_autoencoder import import_model as import_multiscale_bimode
 from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator, \
@@ -23,7 +26,7 @@ from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHist
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
     thumbnail_generator as thumb_generator, normalize_generator, augment_generator, regressor_generator, \
     rotsym_augmentor
-#from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
+# from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
 from Rignak_DeepLearning.config import get_config
 
 """
@@ -36,9 +39,9 @@ from Rignak_DeepLearning.config import get_config
 >>> python train.py bimode waifu 
 """
 
-BATCH_SIZE = 8
-TRAINING_STEPS = 2000
-VALIDATION_STEPS = 500
+BATCH_SIZE = 16
+TRAINING_STEPS = 100
+VALIDATION_STEPS = 50
 EPOCHS = 1000
 INITIAL_EPOCH = 0
 
@@ -116,19 +119,19 @@ def get_data_augmentation(task, train_generator, val_generator, callback_generat
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_bimode_augmentation():
-        new_train_generator = bimode_normalize(
-            bimode_augment(train_generator, noise_function=noise_function, apply_on_output=True),
-            normalization_function, apply_on_output=True)
-        new_val_generator = bimode_normalize(
-            bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True), normalization_function,
-            apply_on_output=True)
-        new_callback_generator = bimode_normalize(
-            bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True),
-            normalization_function, apply_on_output=True)
+        # new_train_generator = bimode_normalize(
+        #     bimode_augment(train_generator, noise_function=noise_function, apply_on_output=True),
+        #     normalization_function, apply_on_output=True)
+        # new_val_generator = bimode_normalize(
+        #     bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True), normalization_function,
+        #     apply_on_output=True)
+        # new_callback_generator = bimode_normalize(
+        #     bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True),
+        #     normalization_function, apply_on_output=True)
 
-        # new_train_generator = bimode_normalize(train_generator, normalization_function, apply_on_output=True)
-        # new_val_generator = bimode_normalize(val_generator, normalization_function, apply_on_output=True)
-        # new_callback_generator = bimode_normalize(callback_generator, normalization_function, apply_on_output=True)
+        new_train_generator = bimode_normalize(train_generator, normalization_function, apply_on_output=True)
+        new_val_generator = bimode_normalize(val_generator, normalization_function, apply_on_output=True)
+        new_callback_generator = bimode_normalize(callback_generator, normalization_function, apply_on_output=True)
 
         return new_train_generator, new_val_generator, new_callback_generator
 
@@ -136,7 +139,9 @@ def get_data_augmentation(task, train_generator, val_generator, callback_generat
         new_train_generator = normalize_generator(
             augment_generator(train_generator, noise_function=noise_function, apply_on_output=False),
             normalization_function, apply_on_output=False)
+
         new_val_generator = normalize_generator(val_generator, normalization_function, apply_on_output=False)
+
         new_callback_generator = normalize_generator(
             augment_generator(callback_generator, noise_function=noise_function, apply_on_output=False),
             normalization_function, apply_on_output=False)
@@ -145,7 +150,7 @@ def get_data_augmentation(task, train_generator, val_generator, callback_generat
         # new_val_generator = rotsym_augmentor(new_val_generator)
         # new_callback_generator = rotsym_augmentor(new_callback_generator)
 
-        return new_train_generator, new_val_generator, new_callback_generator
+        return train_generator, val_generator, callback_generator
 
     def get_regressor_augmentation():
         return train_generator, val_generator, callback_generator

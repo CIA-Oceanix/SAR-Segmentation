@@ -2,7 +2,7 @@ import os
 import numpy as np
 from PIL import Image
 import cv2
-import scipy.misc
+from skimage.transform import resize
 from tqdm import tqdm
 
 import PIL.Image
@@ -35,7 +35,7 @@ def read(filename, input_shape=None):
         im = np.array(im)
     try:
         if input_shape is not None and (im.shape[0] != input_shape[0] or im.shape[1] != input_shape[1]):
-            im = scipy.misc.imresize(im, input_shape[:2])
+            im = resize(im, input_shape[:2])
         if len(im.shape) == 2:
             im = np.expand_dims(im, axis=-1)
         if im.shape[-1] == 1 and input_shape[-1] == 3:
@@ -49,6 +49,9 @@ def read(filename, input_shape=None):
 def get_dataset_roots(task, dataset='.'):
     train_root = os.path.join('E:', 'datasets', dataset, 'train')
     val_root = os.path.join('E:', 'datasets', dataset, 'val')
+
+    train_root = os.path.join('..', '..', '..', 'data', dataset)
+    val_root = os.path.join('..', '..', '..', 'data', dataset)
     return train_root, val_root
 
 

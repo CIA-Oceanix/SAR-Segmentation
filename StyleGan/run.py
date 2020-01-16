@@ -22,8 +22,10 @@ from Rignak_Misc.path import get_local_file
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 
+
 DEFAULT_MODEL = 'sar_network-snapshot-008100.pkl'
 LAYER_NUMBER = 18
+
 RESULT_ROOT = get_local_file(__file__, 'results')
 TRUNCATION_PSI = 0.7
 NUMBER_OF_PICTURES = 20
