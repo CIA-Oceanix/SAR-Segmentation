@@ -1,7 +1,10 @@
 import os, sys
 
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
-os.environ['CUDA_VISIBLE_DEVICES'] = '3'
+for arg in sys.argv:
+    if arg.startswith('--run_on_gpu='):
+        os.environ['CUDA_VISIBLE_DEVICES'] = arg[-1]
+
 import fire
 
 import deprecation_warnings
@@ -191,8 +194,8 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         return model
 
     def get_categorizer_model():
-        class_weight = {i: len(os.listdir(os.path.join(train_folder, folder)))
-                        for folder in os.listdir(train_folder) if os.path.isdir(os.path.join(train_folder, folder))}
+        class_weight = [len(os.listdir(os.path.join(train_folder, folder)))
+                        for folder in os.listdir(train_folder) if os.path.isdir(os.path.join(train_folder, folder))]
         if task == 'inceptionV3':
             model = InceptionV3(input_shape, len(labels), name, load=load, imagenet=config[task].get('IMAGENET', False),
                                 class_weight=class_weight)
@@ -291,7 +294,7 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
     train_generator, val_generator, callback_generator, train_dir = get_generators(config, task, dataset, batch_size)
     train_generator, val_generator, callback_generator = get_data_augmentation(task, train_generator, val_generator,
                                                                                callback_generator)
-    name = f'{dataset}_{task}'
+    name = config[task].get('NAME', f'{dataset}_{task}')
     model = get_models(config, task, name, train_folder, load=initial_epoch != 0)
     callbacks = get_callbacks(config, task, model, callback_generator)
     print('FIRIN MAH LASER')
@@ -308,7 +311,8 @@ def train(model, train_generator, val_generator, callbacks, training_steps=TRAIN
                         validation_steps=validation_steps,
                         epochs=epochs,
                         callbacks=callbacks,
-                        initial_epoch=initial_epoch)
+                        initial_epoch=initial_epoch,
+                        class_weight=model.class_weight)
 
 
 if __name__ == '__main__':

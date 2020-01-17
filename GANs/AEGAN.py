@@ -161,8 +161,8 @@ def build_classifier(n_classes, latent_space_root_length, convs):
 def build_discriminator(img_shape):
     if img_shape[-1] == 1:
         img_input = Input(shape=img_shape)
-        img_conc = Concatenate()([img_input, img_input, img_input])
-        base_model = InceptionV3(input_shape=(img_shape[0], img_shape[2], 3), classes=1, include_top=False)
+        img_conc = concatenate([img_input, img_input, img_input])
+        base_model = InceptionV3(input_tensor=img_conc, classes=1, include_top=False)
     else:
         base_model = InceptionV3(input_shape=img_shape, classes=1, include_top=False)
         img_input = base_model.input
