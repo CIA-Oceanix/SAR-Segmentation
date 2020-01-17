@@ -17,7 +17,7 @@ def make_categorizer_output(index, label_number):
 
 
 def generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
-    folders = os.listdir(root)
+    folders = [folder for folder in os.listdir(root) if os.path.isdir(os.path.join(root, folder))]
     tags = {os.path.join(root, folder, filename): make_categorizer_output(folders.index(folder), len(folders))
             for folder in folders
             for filename in os.listdir(os.path.join(root, folder))}

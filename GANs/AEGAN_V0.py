@@ -13,6 +13,7 @@ from keras.layers import Conv2D, Lambda
 from keras.layers import Input, Dense, GlobalAveragePooling2D, concatenate, Reshape, Conv2DTranspose
 from keras.optimizers import Adam
 
+from Rignak_DeepLearning.normalization import tanh_normalization, log_normalization, fake_normalization
 from Rignak_DeepLearning.models import convolution_block
 from Rignak_DeepLearning.BiOutput import generator, callbacks
 from Rignak_DeepLearning.data import get_dataset_roots
@@ -71,8 +72,11 @@ class AEGAN():
         self.classifier.trainable = False
         validity = self.discriminator(reconstructed_img)
         self.adversarial_autoencoder = Model(img, [encoded_class, reconstructed_img, validity], name="adversarial")
-        self.adversarial_autoencoder.compile(loss=['categorical_crossentropy', 'mae', 'mse'],
-                                             loss_weights=[1, 1, 0.05], optimizer=optimizer)
+        self.adversarial_autoencoder.compile(loss={'classifier': 'categorical_crossentropy',
+                                                   'decoder': 'mse',
+                                                   'discriminator': 'mse'},
+                                             loss_weights={"classifier": 1.0, "decoder": 1.0, "discriminator": 0.0},
+                                             optimizer=optimizer)
 
     def train(self, dataset, epochs, batch_size=8, sample_interval=300, steps_per_epoch=200):
         def process_batch(generator):
@@ -99,11 +103,15 @@ class AEGAN():
         fake = np.zeros((batch_size,) + self.disc_patch)
 
         # Get generators
+        normalizer, denormalizer = fake_normalization()
         train_folder, val_folder = get_dataset_roots('', dataset=dataset)
         labels = [folder for folder in os.listdir(train_folder)
                   if os.path.isdir(os.path.join(train_folder, folder))]
         train_generator = generator.generator(train_folder, batch_size=batch_size, input_shape=self.img_shape)
-        val_generator = generator.generator(val_folder, batch_size=batch_size, input_shape=self.img_shape)
+        train_generator = generator.normalize_generator(train_generator, normalizer, apply_on_output=True)
+
+        val_generator = generator.generator(val_folder, batch_size=4, input_shape=self.img_shape)
+        val_generator = generator.normalize_generator(val_generator, normalizer, apply_on_output=True)
 
         self.adversarial_autoencoder.summary()
 
@@ -131,19 +139,19 @@ class AEGAN():
                 pbar.update(1)
 
                 if batch_i % sample_interval == 0:
-                    self.sample_images(dataset, val_generator, epoch, batch_i, labels)
+                    self.sample_images(dataset, val_generator, epoch, batch_i, labels, denormalizer=denormalizer)
 
             self.discriminator.save(self.DISCRIMINATOR_FILENAME)
             self.encoder.save(self.ENCODER_FILENAME)
             self.decoder.save(self.DECODER_FILENAME)
 
-    def sample_images(self, dataset, generator, epoch, batch_i, labels):
+    def sample_images(self, dataset, generator, epoch, batch_i, labels, denormalizer=None):
         os.makedirs(f"output/AEGAN_{dataset}", exist_ok=True)
         batch_input, batch_output = next(generator)
         latent_batch = self.encoder.predict(batch_input)
         prediction = [self.classifier.predict(latent_batch), self.decoder.predict(latent_batch)]
 
-        callbacks.plot_example(batch_input, prediction, labels, batch_output)
+        callbacks.plot_example(batch_input, prediction, labels, batch_output, denormalization=denormalizer)
         plt.savefig(os.path.join(ROOT, f"{epoch}_{batch_i}.png"))
         plt.close()
 
@@ -202,4 +210,4 @@ if __name__ == '__main__':
     dataset = sys.argv[1]
     ROOT = f"output/AEGAN_V0_{dataset}"
     gan = AEGAN((256, 256, 3), n_classes=10)
-    gan.train(dataset, epochs=10000, batch_size=4)
+    gan.train(dataset, epochs=10000, batch_size=1)

@@ -1,8 +1,8 @@
 import os, sys
-import sys
 import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
+import time
 
 if __name__ == '__main__':
     sys.path.append(os.path.join(os.path.dirname(__file__), "..", '..'))
@@ -14,11 +14,14 @@ from keras.layers import Conv2D, Lambda
 from keras.layers import Input, Dense, GlobalAveragePooling2D, concatenate, Reshape, UpSampling2D, Conv2DTranspose
 from keras.optimizers import Adam
 
+from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.models import convolution_block
 from Rignak_DeepLearning.BiOutput import generator, callbacks
 from Rignak_DeepLearning.data import get_dataset_roots
 
 from Rignak_DeepLearning.GANs.pix2pix import build_discriminator as build_pixiv_discriminator
+
+LOG_FILENAME = get_local_file(__file__, "AEGAN_LOGS.csv")
 
 
 class AEGAN():
@@ -28,7 +31,7 @@ class AEGAN():
         self.channels = image_shape[2]
         self.img_shape = image_shape
 
-        self.latent_space_root_length = 8
+        self.latent_space_shapes = ([8, 8, 1], [8, 8, 2], [8, 8, 4], [8, 8, 8], [8, 8, 8], [8, 8, 16])
         self.n_classes = n_classes
         self.convs = [32, 64, 128, 128, 128, 256]
         optimizer = Adam(0.0002, 0.5)
@@ -52,16 +55,15 @@ class AEGAN():
             self.encoder = load_model(self.ENCODER_FILENAME)
         else:
             self.encoder = build_encoder(img_shape=self.img_shape, convs=self.convs, n_classes=self.n_classes,
-                                         latent_space_root_length=self.latent_space_root_length)
+                                         latent_space_shapes=self.latent_space_shapes)
 
         if os.path.exists(self.DECODER_FILENAME):
             self.decoder = load_model(self.DECODER_FILENAME)
         else:
             self.decoder = build_decoder(n_classes=self.n_classes, convs=self.convs, img_shape=self.img_shape,
-                                         latent_space_root_length=self.latent_space_root_length)
+                                         latent_space_shapes=self.latent_space_shapes)
 
-        self.classifier = build_classifier(n_classes=self.n_classes, convs=self.convs,
-                                           latent_space_root_length=self.latent_space_root_length)
+        self.classifier = build_classifier(n_classes=self.n_classes, latent_space_shapes=self.latent_space_shapes)
         self.classifier.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['acc'])
 
         img = Input(shape=self.img_shape)
@@ -74,10 +76,14 @@ class AEGAN():
         validity = self.discriminator(reconstructed_img)
 
         self.adversarial_autoencoder = Model(img, [encoded_class, reconstructed_img, validity], name="adversarial")
-        self.adversarial_autoencoder.compile(loss=['categorical_crossentropy', 'mae', 'mse'],
-                                             loss_weights=[1, 1, 0.05], optimizer=optimizer)
+        self.adversarial_autoencoder.compile(loss={'classifier': 'categorical_crossentropy',
+                                                   'decoder': 'mse',
+                                                   'discriminator': 'mse'},
+                                             loss_weights={"classifier": 1.0, "decoder": 1.0, "discriminator": 0.0},
+                                             optimizer=optimizer)
 
-    def train(self, dataset, epochs, batch_size=16, sample_interval=300, steps_per_epoch=200):
+    def train(self, dataset, epochs, batch_size=16, sample_interval=300, steps_per_epoch=200,
+              log_filename=LOG_FILENAME):
         def process_batch(generator):
             batch_input, (batch_label, batch_output) = next(generator)
 
@@ -124,7 +130,7 @@ class AEGAN():
                 decoder_loss.append(generator_loss[1])
                 discriminative_loss.append(generator_loss[2])
                 discriminative_acc.append(d_loss[1] * 100)
-                pbar.set_description(f"Epoch {epoch}/{epochs} - Batch {batch_i}/{steps_per_epoch} - "
+                pbar.set_description(f"Epoch {epoch}/{epochs} - Batch {batch_i + 1}/{steps_per_epoch} - "
                                      f"[D_loss = {np.mean(discriminative_loss):.4f}"
                                      f" D_acc = {np.mean(discriminative_acc):.1f}%"
                                      f" E_loss = {np.mean(encoder_loss):.4f}"
@@ -134,6 +140,13 @@ class AEGAN():
 
                 if batch_i % sample_interval == 0:
                     self.sample_images(dataset, val_generator, epoch, batch_i, labels)
+
+            with open(log_filename, 'aw'[epoch == 0]) as file:
+                if epoch == 0:
+                    file.write(f"Asc Time;Epoch;Discriminator loss;Discriminator accuracy;"
+                               f"Encoder loss;Encoder class accuracy;Decoder loss\n")
+                file.write(f"{time.asctime()};{epoch};{np.mean(discriminative_loss)};{np.mean(discriminative_acc)};"
+                           f"{np.mean(encoder_loss)};{np.mean(encoder_acc)};{np.mean(decoder_loss)}\n")
 
             self.discriminator.save(self.DISCRIMINATOR_FILENAME)
             self.encoder.save(self.ENCODER_FILENAME)
@@ -150,9 +163,10 @@ class AEGAN():
         plt.close()
 
 
-def build_classifier(n_classes, latent_space_root_length, convs):
-    inputs = [Input([n_classes])] + [Input([latent_space_root_length ** 2]) for _ in convs[:-1]] + \
-             [Input([latent_space_root_length ** 2 - n_classes])]
+def build_classifier(n_classes, latent_space_shapes):
+    inputs = [Input([n_classes])] + \
+             [Input([np.prod(latent_space_shape)]) for latent_space_shape in latent_space_shapes[:-1]] + \
+             [Input([np.prod(latent_space_shapes[-1]) - n_classes])]
     class_layer = Lambda(lambda x: x, name='endoded_class')(inputs[0])
     model = Model(inputs=inputs, outputs=class_layer, name="classifier")
     return model
@@ -174,7 +188,7 @@ def build_discriminator(img_shape):
     return model
 
 
-def build_encoder(img_shape, convs, n_classes, latent_space_root_length):
+def build_encoder(img_shape, convs, n_classes, latent_space_shapes):
     input_layer = Input(img_shape, name="input")
     latent_space_layers = []
     block = None
@@ -187,9 +201,9 @@ def build_encoder(img_shape, convs, n_classes, latent_space_root_length):
         global_pooling = GlobalAveragePooling2D()(block)
         latent_space_layer = Dense(neurons, activation='selu')(global_pooling)
         if i == len(convs) - 1:
-            neurons = latent_space_root_length ** 2 - n_classes
+            neurons = np.prod(latent_space_shapes[i]) - n_classes
         else:
-            neurons = latent_space_root_length ** 2
+            neurons = np.prod(latent_space_shapes[i])
         latent_space_layer = Dense(neurons, activation='selu')(latent_space_layer)
         latent_space_layers.append(latent_space_layer)
 
@@ -199,14 +213,16 @@ def build_encoder(img_shape, convs, n_classes, latent_space_root_length):
     return model
 
 
-def build_decoder(n_classes, latent_space_root_length, convs, img_shape):
-    inputs = [Input([n_classes])] + [Input([latent_space_root_length ** 2]) for _ in convs[:-1]] + \
-             [Input([latent_space_root_length ** 2 - n_classes])]
+def build_decoder(n_classes, latent_space_shapes, convs, img_shape):
+    inputs = [Input([n_classes])] + \
+             [Input([np.prod(latent_space_shape)]) for latent_space_shape in latent_space_shapes[:-1]] + \
+             [Input([np.prod(latent_space_shapes[-1]) - n_classes])]
     latent_space_layers = [layer for layer in inputs[1:-1]]
     latent_space_layers.append(concatenate([inputs[0], inputs[-1]]))
 
-    latent_space_layers = [Reshape((latent_space_root_length, latent_space_root_length, 1),
-                                   name=f"decoder_input{i}")(layer) for i, layer in enumerate(latent_space_layers)]
+    latent_space_layers = [Reshape(latent_space_shape, name=f"decoder_input{i}")(layer)
+                           for i, (layer, latent_space_shape) in enumerate(zip(latent_space_layers,
+                                                                               latent_space_shapes))]
 
     block = None
     for i, (neurons, latent_space_layer) in enumerate(zip(convs[::-1], latent_space_layers[::-1])):
@@ -229,4 +245,4 @@ if __name__ == '__main__':
     dataset = sys.argv[1]
     ROOT = f"output/AEGAN_{dataset}"
     gan = AEGAN((256, 256, 1), n_classes=10)
-    gan.train(dataset, epochs=10000, batch_size=8)
+    gan.train(dataset, epochs=10000, batch_size=4)

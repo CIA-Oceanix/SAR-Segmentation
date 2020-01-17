@@ -22,17 +22,21 @@ DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
                  config=CONFIG, name=DEFAULT_NAME):
+    skipless = config.get('SKIPLESS', False)
+
+    name = f"{name}_{['skippy', 'skipless'][skipless]}"
     weight_filename = os.path.join(weight_root, f"{name}.h5")
     summary_filename = os.path.join(summary_root, f"{name}.txt")
     convs = []
     block = None
 
+    batch_normalization = config.get('BATCH_NORMALIZATION', False)
     conv_layers = config['CONV_LAYERS']
     input_shape = config.get('INPUT_SHAPE', (256, 256, 3))
     activation = config.get('ACTIVATION', 'relu')
     last_activation = config.get('ACTIVATION', 'sigmoid')
     output_canals = config.get('OUTPUT_CANALS', input_shape[-1])
-    
+
     if output_canals == 1:
         loss = dice_coef_loss
     else:
@@ -42,16 +46,21 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     # encoder
     for neurons in conv_layers:
         if block is None:
-            block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=True)
+            block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=True,
+                                            batch_normalization=batch_normalization)
         else:
-            block, conv = convolution_block(block, neurons, activation=activation, maxpool=True)
+            block, conv = convolution_block(block, neurons, activation=activation, maxpool=True,
+                                            batch_normalization=batch_normalization)
         convs.append(conv)
 
     # central
-    block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False)
+    block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False,
+                                    batch_normalization=batch_normalization)
 
     # decoder
     for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
+        if skipless:
+            previous_conv = None
         block = deconvolution_block(block, previous_conv, neurons, activation=activation)
     conv_layer = Conv2D(output_canals, (1, 1), activation=last_activation)(block)
 

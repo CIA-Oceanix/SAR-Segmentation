@@ -58,13 +58,16 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
         # encoder
         for neurons in conv_layers:
             if block is None:
-                block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=False)
+                block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=False,
+                                                batch_normalization=True)
             else:
-                block, conv = convolution_block(block, neurons, activation=activation, maxpool=False)
+                block, conv = convolution_block(block, neurons, activation=activation, maxpool=False,
+                                                batch_normalization=True)
             convs.append(conv)
 
         # central
-        block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False)
+        block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False,
+                                        batch_normalization=True)
 
         # decoder
         for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):

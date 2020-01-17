@@ -87,7 +87,7 @@ class ExampleCallback(Callback):
         plt.close()
 
 
-def plot_example(input_images, prediction, labels, groundtruth):
+def plot_example(input_images, prediction, labels, groundtruth, denormalization=None):
     n = min(8, input_images.shape[0])
     input_images = input_images
     prediction_images = prediction[1]
@@ -98,6 +98,11 @@ def plot_example(input_images, prediction, labels, groundtruth):
     plt.figure(figsize=(20, 10))
     for i, (input_image, prediction_image, prediction_label, groundtruth_image, groundtruth_label) in enumerate(zip(
             input_images, prediction_images, prediction_labels, groundtruth_images, groundtruth_labels)):
+        if denormalization is not None:
+            input_image = denormalization(input_image)
+            prediction_image = denormalization(prediction_image)
+            groundtruth_image = denormalization(groundtruth_image)
+
         if i == n:
             break
         if i != 0:
