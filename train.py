@@ -43,8 +43,8 @@ from Rignak_DeepLearning.config import get_config
 """
 
 BATCH_SIZE = 16
-TRAINING_STEPS = 100
-VALIDATION_STEPS = 50
+TRAINING_STEPS = 2000
+VALIDATION_STEPS = 500
 EPOCHS = 1000
 INITIAL_EPOCH = 0
 
@@ -159,7 +159,7 @@ def get_data_augmentation(task, train_generator, val_generator, callback_generat
         return train_generator, val_generator, callback_generator
 
     print('ADD DATA-AUGMENTATION')
-    normalization_function = intensity_normalization()[0]
+    normalization_function = intensity_normalization(f=1/255)[0]
     noise_function = get_uniform_noise_function()
 
     functions = {"style_transfer": get_im2im_data_augmentation,
@@ -183,6 +183,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
             config[task]['OUTPUT_CANALS'] = len(labels)
         model = import_flat_model(name=name, config=config[task], load=load)
         model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
+        model.class_weight = None
         return model
 
     def get_autoencoder_model():
@@ -191,36 +192,40 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         else:
             model = import_unet_model(name=name, config=config[task], load=load)
         model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
+        model.class_weight = None
         return model
 
     def get_categorizer_model():
-        class_weight = [len(os.listdir(os.path.join(train_folder, folder)))
-                        for folder in os.listdir(train_folder) if os.path.isdir(os.path.join(train_folder, folder))]
         if task == 'inceptionV3':
             model = InceptionV3(input_shape, len(labels), name, load=load, imagenet=config[task].get('IMAGENET', False),
                                 class_weight=class_weight)
         else:
-            model = import_categorizer(len(labels), config=config[task], name=name, load=load)
+            model = import_categorizer(len(labels), config=config[task], name=name, load=load,
+                                       class_weight=class_weight)
         model.labels = labels
         return model
 
     def get_bimode_model():
-        model = import_bimode(output_canals, labels, config=config[task], name=name, load=load)
+        model = import_bimode(labels, config=config[task], name=name, load=load)
         model.labels = labels
+        model.class_weight = None
         return model
 
     def get_multiscale_bimode_model():
-        model = import_multiscale_bimode(output_canals, labels, config=config[task], name=name, load=load)
+        model = import_multiscale_bimode(labels, config=config[task], name=name, load=load)
         model.labels = labels
+        model.class_weight = None
         return model
 
     def get_regressor_model():
         model = InceptionV3(input_shape, output_canals, name, load=load, imagenet=config[task].get('IMAGENET', False),
                             last_activation='linear', loss='mse', metrics=[])
+        model.class_weight = None
         return model
 
     print('SYNTHETIZE THE MODELS')
     labels = [folder for folder in os.listdir(train_folder) if os.path.isdir(os.path.join(train_folder, folder))]
+    class_weight = [len(os.listdir(os.path.join(train_folder, folder))) for folder in labels]
     print('labels:', labels)
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
     output_canals = config[task].get('OUTPUT_CANALS')

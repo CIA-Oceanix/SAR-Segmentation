@@ -26,9 +26,6 @@ MODEL_FILENAME = "chen_inceptionV3_imagenet.h5"
 OUTPUT_DATASET = True
 OUTPUT_DATASET_SHAPE = (256, 256)
 
-OUTPUT_DATASET = True
-OUTPUT_DATASET_SHAPE = (256, 256)
-
 
 def get_process_image(model_filename=MODEL_FILENAME, mixed_id=3):
     def process_image(im, min=0.0, max=1.2):

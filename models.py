@@ -31,3 +31,5 @@ def deconvolution_block(layer, previous_conv, neurons, kernel_size=KERNEL_SIZE, 
     if batch_normalization:
         block = BatchNormalization()(block)
     return block
+
+

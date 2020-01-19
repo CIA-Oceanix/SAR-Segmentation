@@ -13,28 +13,33 @@ from keras.models import Model, load_model
 from keras.layers import Conv2D, Lambda
 from keras.layers import Input, Dense, GlobalAveragePooling2D, concatenate, Reshape, UpSampling2D, Conv2DTranspose
 from keras.optimizers import Adam
+from keras_radam.training import RAdamOptimizer
 
+from Rignak_DeepLearning.normalization import tanh_normalization, log_normalization, fake_normalization, \
+    intensity_normalization
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.models import convolution_block
 from Rignak_DeepLearning.BiOutput import generator, callbacks
 from Rignak_DeepLearning.data import get_dataset_roots
+from Rignak_DeepLearning.BiOutput.multiscale_autoencoder import build_decoder, build_encoder
 
-from Rignak_DeepLearning.GANs.pix2pix import build_discriminator as build_pixiv_discriminator
+from Rignak_DeepLearning.GANs.pix2pix import build_discriminator as build_pix2pix_discriminator
+
+import matplotlib.pyplot as plt
 
 LOG_FILENAME = get_local_file(__file__, "AEGAN_LOGS.csv")
 
 
 class AEGAN():
     def __init__(self, image_shape, n_classes):
-        self.img_rows = image_shape[0]
-        self.img_cols = image_shape[1]
-        self.channels = image_shape[2]
+        labels = [''] * n_classes
+        self.img_rows, self.img_cols, self.channels = image_shape
         self.img_shape = image_shape
 
-        self.latent_space_shapes = ([8, 8, 1], [8, 8, 2], [8, 8, 4], [8, 8, 8], [8, 8, 8], [8, 8, 16])
+        self.latent_space_shapes = ([8, 8, 2], [8, 8, 4], [8, 8, 8], [8, 8, 16])
         self.n_classes = n_classes
-        self.convs = [32, 64, 128, 128, 128, 256]
-        optimizer = Adam(0.0002, 0.5)
+        self.convs = [16, 32, 64, 128]
+        optimizer = RAdamOptimizer(1e-3)
 
         patch = int(self.img_rows / 2 ** 4)
         self.disc_patch = (patch, patch, 1)
@@ -46,43 +51,40 @@ class AEGAN():
         if os.path.exists(self.DISCRIMINATOR_FILENAME):
             self.discriminator = load_model(self.DISCRIMINATOR_FILENAME)
         else:
-            # self.discriminator = build_discriminator(img_shape=self.img_shape)
-            # self.discriminator.compile(loss='binary_crossentropy', optimizer='adam', metrics=['acc'])
-            self.discriminator = build_pixiv_discriminator(img_shape=self.img_shape, df=64, inputs=1)
-            self.discriminator.compile(loss='mse', optimizer=optimizer, metrics=['accuracy'])
+            self.discriminator = build_pix2pix_discriminator(img_shape=self.img_shape, df=64, inputs=1)
+        self.discriminator.compile(loss='mse', optimizer=optimizer, metrics=['accuracy'])
 
         if os.path.exists(self.ENCODER_FILENAME):
             self.encoder = load_model(self.ENCODER_FILENAME)
         else:
-            self.encoder = build_encoder(img_shape=self.img_shape, convs=self.convs, n_classes=self.n_classes,
-                                         latent_space_shapes=self.latent_space_shapes)
+            self.encoder = build_encoder(input_shape=self.img_shape, latent_space_shapes=self.latent_space_shapes,
+                                         activation='relu', labels=labels, conv_layers=self.convs)
 
         if os.path.exists(self.DECODER_FILENAME):
             self.decoder = load_model(self.DECODER_FILENAME)
         else:
-            self.decoder = build_decoder(n_classes=self.n_classes, convs=self.convs, img_shape=self.img_shape,
-                                         latent_space_shapes=self.latent_space_shapes)
-
-        self.classifier = build_classifier(n_classes=self.n_classes, latent_space_shapes=self.latent_space_shapes)
-        self.classifier.compile(loss='categorical_crossentropy', optimizer=optimizer, metrics=['acc'])
+            self.decoder = build_decoder(input_shape=self.img_shape, latent_space_shapes=self.latent_space_shapes,
+                                         labels=labels, conv_layers=self.convs, activation='relu')
 
         img = Input(shape=self.img_shape)
         encoded_repr = self.encoder(img)
-        encoded_class = self.classifier(encoded_repr)
         reconstructed_img = self.decoder(encoded_repr)
 
         self.discriminator.trainable = False
-        self.classifier.trainable = False
         validity = self.discriminator(reconstructed_img)
 
-        self.adversarial_autoencoder = Model(img, [encoded_class, reconstructed_img, validity], name="adversarial")
-        self.adversarial_autoencoder.compile(loss={'classifier': 'categorical_crossentropy',
-                                                   'decoder': 'mse',
-                                                   'discriminator': 'mse'},
-                                             loss_weights={"classifier": 1.0, "decoder": 1.0, "discriminator": 0.0},
-                                             optimizer=optimizer)
 
-    def train(self, dataset, epochs, batch_size=16, sample_interval=300, steps_per_epoch=200,
+        self.adversarial_autoencoder = Model(img, [encoded_repr[-1], reconstructed_img, validity], name="adversarial")
+        self.adversarial_autoencoder.compile(loss={'encoder': 'categorical_crossentropy',
+                                                   'decoder': 'mae',
+                                                   'discriminator': 'mse'},
+                                             loss_weights={"encoder": 1, "decoder": 10, "discriminator": 0.1},
+                                             optimizer=optimizer)
+        self.encoder.summary()
+        self.decoder.summary()
+        self.adversarial_autoencoder.summary()
+
+    def train(self, dataset, epochs, batch_size=16, steps_per_epoch=200,
               log_filename=LOG_FILENAME):
         def process_batch(generator):
             batch_input, (batch_label, batch_output) = next(generator)
@@ -90,7 +92,7 @@ class AEGAN():
             latent_batch = self.encoder.predict(batch_input)
             reconstructed_batch = self.decoder.predict(latent_batch)
 
-            predicted_labels = latent_batch[0]
+            predicted_labels = latent_batch[-1]
             correct_classification_rate = np.mean([int(np.argmax(pred) == np.argmax(truth))
                                                    for pred, truth in zip(batch_label, predicted_labels)])
 
@@ -108,12 +110,15 @@ class AEGAN():
         fake = np.zeros((batch_size,) + self.disc_patch)
 
         train_folder, val_folder = get_dataset_roots('', dataset=dataset)
+        normalizer, denormalizer = intensity_normalization(f=1 / 255)
         labels = [folder for folder in os.listdir(train_folder)
                   if os.path.isdir(os.path.join(train_folder, folder))]
         train_generator = generator.generator(train_folder, batch_size=batch_size, input_shape=self.img_shape)
-        val_generator = generator.generator(val_folder, batch_size=batch_size, input_shape=self.img_shape)
+        train_generator = generator.normalize_generator(train_generator, normalizer, apply_on_output=True)
 
-        self.adversarial_autoencoder.summary()
+        val_generator = generator.generator(val_folder, batch_size=batch_size, input_shape=self.img_shape)
+        val_generator = generator.normalize_generator(val_generator, normalizer, apply_on_output=True)
+
 
         for epoch in range(epochs):
             pbar = tqdm.trange(steps_per_epoch)
@@ -138,9 +143,7 @@ class AEGAN():
                                      f" G_loss = {np.mean(decoder_loss):.4f}]")
                 pbar.update(1)
 
-                if batch_i % sample_interval == 0:
-                    self.sample_images(dataset, val_generator, epoch, batch_i, labels)
-
+            self.sample_images(dataset, val_generator, epoch, labels)
             with open(log_filename, 'aw'[epoch == 0]) as file:
                 if epoch == 0:
                     file.write(f"Asc Time;Epoch;Discriminator loss;Discriminator accuracy;"
@@ -152,24 +155,15 @@ class AEGAN():
             self.encoder.save(self.ENCODER_FILENAME)
             self.decoder.save(self.DECODER_FILENAME)
 
-    def sample_images(self, dataset, generator, epoch, batch_i, labels):
+    def sample_images(self, dataset, generator, epoch, labels, denormalizer=None):
         os.makedirs(f"output/AEGAN_{dataset}", exist_ok=True)
         batch_input, batch_output = next(generator)
         latent_batch = self.encoder.predict(batch_input)
-        prediction = [self.classifier.predict(latent_batch), self.decoder.predict(latent_batch)]
+        prediction = [latent_batch[-1], self.decoder.predict(latent_batch)]
 
-        callbacks.plot_example(batch_input, prediction, labels, batch_output)
-        plt.savefig(os.path.join(ROOT, f"{epoch}_{batch_i}.png"))
+        callbacks.plot_example(batch_input, prediction, labels, batch_output, denormalization=denormalizer)
+        plt.savefig(os.path.join(ROOT, f"{epoch}.png"))
         plt.close()
-
-
-def build_classifier(n_classes, latent_space_shapes):
-    inputs = [Input([n_classes])] + \
-             [Input([np.prod(latent_space_shape)]) for latent_space_shape in latent_space_shapes[:-1]] + \
-             [Input([np.prod(latent_space_shapes[-1]) - n_classes])]
-    class_layer = Lambda(lambda x: x, name='endoded_class')(inputs[0])
-    model = Model(inputs=inputs, outputs=class_layer, name="classifier")
-    return model
 
 
 def build_discriminator(img_shape):
@@ -188,61 +182,8 @@ def build_discriminator(img_shape):
     return model
 
 
-def build_encoder(img_shape, convs, n_classes, latent_space_shapes):
-    input_layer = Input(img_shape, name="input")
-    latent_space_layers = []
-    block = None
-    for i, neurons in enumerate(convs):
-        if block is None:
-            block, _ = convolution_block(input_layer, neurons, activation='selu', batch_normalization=True)
-        else:
-            block, _ = convolution_block(block, neurons, activation='selu', batch_normalization=True)
-
-        global_pooling = GlobalAveragePooling2D()(block)
-        latent_space_layer = Dense(neurons, activation='selu')(global_pooling)
-        if i == len(convs) - 1:
-            neurons = np.prod(latent_space_shapes[i]) - n_classes
-        else:
-            neurons = np.prod(latent_space_shapes[i])
-        latent_space_layer = Dense(neurons, activation='selu')(latent_space_layer)
-        latent_space_layers.append(latent_space_layer)
-
-    categorization_layer = Dense(n_classes, activation='softmax')(global_pooling)
-    latent_space_layers = [categorization_layer] + latent_space_layers
-    model = Model(inputs=input_layer, outputs=latent_space_layers, name="encoder")
-    return model
-
-
-def build_decoder(n_classes, latent_space_shapes, convs, img_shape):
-    inputs = [Input([n_classes])] + \
-             [Input([np.prod(latent_space_shape)]) for latent_space_shape in latent_space_shapes[:-1]] + \
-             [Input([np.prod(latent_space_shapes[-1]) - n_classes])]
-    latent_space_layers = [layer for layer in inputs[1:-1]]
-    latent_space_layers.append(concatenate([inputs[0], inputs[-1]]))
-
-    latent_space_layers = [Reshape(latent_space_shape, name=f"decoder_input{i}")(layer)
-                           for i, (layer, latent_space_shape) in enumerate(zip(latent_space_layers,
-                                                                               latent_space_shapes))]
-
-    block = None
-    for i, (neurons, latent_space_layer) in enumerate(zip(convs[::-1], latent_space_layers[::-1])):
-        if block is not None:
-            upsample = UpSampling2D((2 ** i, 2 ** i))(latent_space_layer)
-            block = concatenate([upsample, block])
-        else:
-            block = latent_space_layer
-        block, _ = convolution_block(block, neurons, activation='selu', maxpool=False, batch_normalization=True)
-        if i != len(convs) - 1:
-            # block = UpSampling2D((2, 2))(block)
-            block = Conv2DTranspose(neurons, strides=(2, 2), kernel_size=(3, 3),
-                                    padding='same', activation='selu')(block)
-    decoder_layer = Conv2D(img_shape[-1], (1, 1), activation='sigmoid')(block)
-    model = Model(inputs=inputs, outputs=decoder_layer, name="decoder")
-    return model
-
-
 if __name__ == '__main__':
     dataset = sys.argv[1]
     ROOT = f"output/AEGAN_{dataset}"
-    gan = AEGAN((256, 256, 1), n_classes=10)
-    gan.train(dataset, epochs=10000, batch_size=4)
+    gan = AEGAN((128, 128, 3), n_classes=8)
+    gan.train(dataset, epochs=25, batch_size=8, steps_per_epoch=1000)

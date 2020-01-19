@@ -25,13 +25,14 @@ DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
                  weight_decay=WEIGHT_DECAY,
-                 learning_rate=LEARNING_RATE, name=DEFAULT_NAME, config=CONFIG):
+                 learning_rate=LEARNING_RATE, name=DEFAULT_NAME, config=CONFIG,
+                 class_weight=None):
     weight_filename = os.path.join(weight_root, f"{name}.h5")
     summary_filename = os.path.join(summary_root, f"{name}.txt")
 
     conv_layers = config['CONV_LAYERS']
     dense_layers = config['DENSE_LAYERS']
-    input_shape = config.get('INPUT_SHAPE', (256, 256, 3))
+    input_shape = config.get('INPUT_SHAPE', (128, 128, 3))
     activation = config.get('ACTIVATION', 'relu')
     last_activation = config.get('LAST_ACTIVATION', 'softmax')
 
@@ -56,6 +57,7 @@ def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_RO
 
     model.name = name
     model.weight_filename = weight_filename
+    model.class_weight = class_weight
     if load:
         print('load weights')
         model.load_weights(weight_filename)

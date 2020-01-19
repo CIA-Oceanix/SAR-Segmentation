@@ -50,8 +50,8 @@ def get_dataset_roots(task, dataset='.'):
     train_root = os.path.join('E:', 'datasets', dataset, 'train')
     val_root = os.path.join('E:', 'datasets', dataset, 'val')
 
-    train_root = os.path.join('..', '..', '..', 'data', dataset)
-    val_root = os.path.join('..', '..', '..', 'data', dataset)
+    # train_root = os.path.join('..', '..', '..', 'data', dataset)
+    # val_root = os.path.join('..', '..', '..', 'data', dataset)
     return train_root, val_root
 
 

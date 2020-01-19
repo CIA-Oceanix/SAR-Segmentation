@@ -132,37 +132,38 @@
   "multiscale_bimode": {
     "TASK": "multiscale_bimode",
     "INPUT_SHAPE": [
-      512,
-      512,
-      1
-    ],
-    "CONV_LAYERS": [
-      32,
-      64,
-      128,
-      128,
-      128,
-      128,
-      128
-    ],
-    "LATENT_SPACE": 8,
-    "OUTPUT_CANALS": 1
-  },
-  "multiscale_bimode": {
-    "TASK": "multiscale_bimode",
-    "INPUT_SHAPE": [
       128,
       128,
       3
     ],
     "CONV_LAYERS": [
-      256,
-      256,
-      256,
-      256,
-      256
+      32,
+      64,
+      64,
+      128
     ],
-    "LATENT_SPACE": 8,
+    "LATENT_SPACE": [
+      [
+        8,
+        8,
+        4
+      ],
+      [
+        8,
+        8,
+        8
+      ],
+      [
+        8,
+        8,
+        8
+      ],
+      [
+        8,
+        8,
+        16
+      ]
+    ],
     "OUTPUT_CANALS": 3
   },
   "inceptionV3": {
