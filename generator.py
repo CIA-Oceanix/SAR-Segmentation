@@ -70,12 +70,12 @@ def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE):
         yield batch_input, batch_output
 
 
-def normalize_generator(generator, normalization_function, apply_on_output=False):
+def normalize_generator(generator, normalizer, apply_on_output=False):
     while True:
         batch_input, batch_output = next(generator)
-        batch_input = normalization_function(batch_input)
+        batch_input = normalizer(batch_input)
         if apply_on_output:
-            batch_output = normalization_function(batch_output)
+            batch_output = normalizer(batch_output)
         yield batch_input, batch_output
 
 

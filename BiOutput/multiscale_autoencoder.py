@@ -86,7 +86,7 @@ def build_decoder(input_shape, latent_space_shapes, labels, conv_layers, activat
     block = Conv2DTranspose(neurons, strides=(2, 2), kernel_size=(4, 4),
                             padding='same', activation=activation)(block)
 
-    decoder_layer = Conv2D(input_shape[-1], (1, 1), activation='sigmoid', name='decoder_layer')(block)
+    decoder_layer = Conv2D(input_shape[-1], (1, 1), activation='relu', name='decoder_layer')(block)
 
     return Model(inputs=input_layers, outputs=[decoder_layer], name="decoder")
 

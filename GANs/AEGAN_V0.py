@@ -165,7 +165,7 @@ class AEGAN():
         latent_batch = self.encoder.predict(batch_input)
         prediction = [self.classifier.predict(latent_batch), self.decoder.predict(latent_batch)]
 
-        callbacks.plot_example(batch_input, prediction, labels, batch_output, denormalization=denormalizer)
+        callbacks.plot_example(batch_input, prediction, labels, batch_output, denormalizer=denormalizer)
         plt.savefig(os.path.join(ROOT, f"{epoch}.png"))
         plt.close()
 

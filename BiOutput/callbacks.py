@@ -70,10 +70,11 @@ class HistoryCallback(Callback):
 
 
 class ExampleCallback(Callback):
-    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT):
+    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT, denormalizer=None):
         super().__init__()
         self.root = root
         self.generator = generator
+        self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
         os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
@@ -81,13 +82,14 @@ class ExampleCallback(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         example = next(self.generator)
-        plot_example(example[0], self.model.predict(example[0]), self.model.labels, example[1])
+        plot_example(example[0], self.model.predict(example[0]), self.model.labels, example[1],
+                     denormalizer=self.denormalizer)
         plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
 
 
-def plot_example(input_images, prediction, labels, groundtruth, denormalization=None):
+def plot_example(input_images, prediction, labels, groundtruth, denormalizer=None):
     n = min(8, input_images.shape[0])
     input_images = input_images
     prediction_images = prediction[1]
@@ -98,10 +100,10 @@ def plot_example(input_images, prediction, labels, groundtruth, denormalization=
     plt.figure(figsize=(20, 10))
     for i, (input_image, prediction_image, prediction_label, groundtruth_image, groundtruth_label) in enumerate(zip(
             input_images, prediction_images, prediction_labels, groundtruth_images, groundtruth_labels)):
-        if denormalization is not None:
-            input_image = denormalization(input_image)
-            prediction_image = denormalization(prediction_image)
-            groundtruth_image = denormalization(groundtruth_image)
+        if denormalizer is not None:
+            input_image = denormalizer(input_image)
+            prediction_image = denormalizer(prediction_image)
+            groundtruth_image = denormalizer(groundtruth_image)
 
         if i == n:
             break

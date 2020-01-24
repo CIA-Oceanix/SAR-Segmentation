@@ -1,5 +1,4 @@
 import os, sys
-import matplotlib.pyplot as plt
 import numpy as np
 import tqdm
 import time
@@ -10,15 +9,11 @@ if __name__ == '__main__':
 
 from keras.applications.inception_v3 import InceptionV3
 from keras.models import Model, load_model
-from keras.layers import Conv2D, Lambda
-from keras.layers import Input, Dense, GlobalAveragePooling2D, concatenate, Reshape, UpSampling2D, Conv2DTranspose
-from keras.optimizers import Adam
+from keras.layers import Input, Dense, GlobalAveragePooling2D, concatenate
 from keras_radam.training import RAdamOptimizer
 
-from Rignak_DeepLearning.normalization import tanh_normalization, log_normalization, fake_normalization, \
-    intensity_normalization
+from Rignak_DeepLearning.normalization import NORMALIZATION_FUNCTIONS
 from Rignak_Misc.path import get_local_file
-from Rignak_DeepLearning.models import convolution_block
 from Rignak_DeepLearning.BiOutput import generator, callbacks
 from Rignak_DeepLearning.data import get_dataset_roots
 from Rignak_DeepLearning.BiOutput.multiscale_autoencoder import build_decoder, build_encoder
@@ -73,7 +68,6 @@ class AEGAN():
         self.discriminator.trainable = False
         validity = self.discriminator(reconstructed_img)
 
-
         self.adversarial_autoencoder = Model(img, [encoded_repr[-1], reconstructed_img, validity], name="adversarial")
         self.adversarial_autoencoder.compile(loss={'encoder': 'categorical_crossentropy',
                                                    'decoder': 'mae',
@@ -110,7 +104,8 @@ class AEGAN():
         fake = np.zeros((batch_size,) + self.disc_patch)
 
         train_folder, val_folder = get_dataset_roots('', dataset=dataset)
-        normalizer, denormalizer = intensity_normalization(f=1 / 255)
+        normalizer, denormalizer = NORMALIZATION_FUNCTIONS['fourier']()  # TODO as argv
+
         labels = [folder for folder in os.listdir(train_folder)
                   if os.path.isdir(os.path.join(train_folder, folder))]
         train_generator = generator.generator(train_folder, batch_size=batch_size, input_shape=self.img_shape)
@@ -118,7 +113,6 @@ class AEGAN():
 
         val_generator = generator.generator(val_folder, batch_size=batch_size, input_shape=self.img_shape)
         val_generator = generator.normalize_generator(val_generator, normalizer, apply_on_output=True)
-
 
         for epoch in range(epochs):
             pbar = tqdm.trange(steps_per_epoch)
@@ -143,7 +137,7 @@ class AEGAN():
                                      f" G_loss = {np.mean(decoder_loss):.4f}]")
                 pbar.update(1)
 
-            self.sample_images(dataset, val_generator, epoch, labels)
+            self.sample_images(dataset, val_generator, epoch, labels, denormalizer=denormalizer)
             with open(log_filename, 'aw'[epoch == 0]) as file:
                 if epoch == 0:
                     file.write(f"Asc Time;Epoch;Discriminator loss;Discriminator accuracy;"
@@ -161,7 +155,7 @@ class AEGAN():
         latent_batch = self.encoder.predict(batch_input)
         prediction = [latent_batch[-1], self.decoder.predict(latent_batch)]
 
-        callbacks.plot_example(batch_input, prediction, labels, batch_output, denormalization=denormalizer)
+        callbacks.plot_example(batch_input, prediction, labels, batch_output, denormalizer=denormalizer)
         plt.savefig(os.path.join(ROOT, f"{epoch}.png"))
         plt.close()
 
@@ -185,5 +179,5 @@ def build_discriminator(img_shape):
 if __name__ == '__main__':
     dataset = sys.argv[1]
     ROOT = f"output/AEGAN_{dataset}"
-    gan = AEGAN((128, 128, 3), n_classes=8)
-    gan.train(dataset, epochs=25, batch_size=8, steps_per_epoch=1000)
+    gan = AEGAN((128, 128, 3), n_classes=10)  # TODO: n_classes computed
+    gan.train(dataset, epochs=50, batch_size=4, steps_per_epoch=10)

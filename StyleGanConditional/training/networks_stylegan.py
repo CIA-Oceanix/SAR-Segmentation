@@ -439,12 +439,12 @@ def G_mapping(
 
 def G_synthesis(
     dlatents_in,                        # Input: Disentangled latents (W) [minibatch, num_layers, dlatent_size].
-    dlatent_size        = 128,          # Disentangled latent (W) dimensionality.
+    dlatent_size        = 512,          # Disentangled latent (W) dimensionality.
     num_channels        = 3,            # Number of output color channels.
     resolution          = 128,         # Output resolution.
     fmap_base           = 8192,         # Overall multiplier for the number of feature maps.
     fmap_decay          = 1.0,          # log2 feature map reduction when doubling the resolution.
-    fmap_max            = 128,          # Maximum number of feature maps in any layer.
+    fmap_max            = 512,          # Maximum number of feature maps in any layer.
     use_styles          = True,         # Enable style inputs?
     const_input_layer   = True,         # First layer is a learned constant?
     use_noise           = True,         # Enable noise inputs?

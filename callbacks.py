@@ -66,10 +66,11 @@ class HistoryCallback(Callback):
 
 
 class AutoencoderExampleCallback(Callback):
-    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT):
+    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT, denormalizer=None):
         super().__init__()
         self.root = root
         self.generator = generator
+        self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
         os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
@@ -86,17 +87,19 @@ class AutoencoderExampleCallback(Callback):
         example[1] = np.array(example[1])
         example[2] = np.array(example[2])
 
-        plot_autoencoder_example(example[0], example[2], groundtruth=example[1], labels=self.model.callback_titles)
+        plot_autoencoder_example(example[0], example[2], groundtruth=example[1], labels=self.model.callback_titles,
+                                 denormalizer=self.denormalizer)
         plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
 
 
 class ClassificationExampleCallback(Callback):
-    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT):
+    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT, denormalizer=None):
         super().__init__()
         self.root = root
         self.generator = generator
+        self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
         os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
@@ -104,7 +107,8 @@ class ClassificationExampleCallback(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         example = next(self.generator)
-        plot_categorizer_example(example, self.model.predict(example[0]), self.model.labels)
+        plot_categorizer_example(example, self.model.predict(example[0]), self.model.labels,
+                                 denormalizer=self.denormalizer)
         plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()

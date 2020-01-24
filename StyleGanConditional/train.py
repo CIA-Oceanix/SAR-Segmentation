@@ -34,10 +34,14 @@ if 1:
     tf_config     = {'rnd.np_random_seed': 1000}                                           # Options for tflib.init_tf().
 
     # Dataset.
-    desc += '-logos';     dataset = EasyDict(tfrecord_dir='no_conditions', resolution=128);
+    desc += '-logos'
+    dataset = EasyDict(tfrecord_dir='no_conditions', resolution=128)
 
     # Number of GPUs.
-    desc += '-1gpu'; submit_config.num_gpus = 1; sched.minibatch_base = 4; sched.minibatch_dict = {4: 128, 8: 128, 16: 128, 32: 64, 64: 32, 128: 16, 256: 8, 512: 4}
+    desc += '-1gpu'
+    submit_config.num_gpus = 1
+    sched.minibatch_base = 4
+    sched.minibatch_dict = {4: 128, 8: 128, 16: 128, 32: 64, 64: 32, 128: 16, 256: 8, 512: 4}
 
     # Default options.
     train.total_kimg = 20000
@@ -45,7 +49,8 @@ if 1:
     sched.G_lrate_dict = {128: 0.0015, 256: 0.002, 512: 0.003, 1024: 0.003}
     sched.D_lrate_dict = EasyDict(sched.G_lrate_dict)
 
-    desc += '-cond'; dataset.max_label_size = 'full'
+    desc += '-cond'
+    dataset.max_label_size = 'full'
 
 #----------------------------------------------------------------------------
 # Main entry point for training.

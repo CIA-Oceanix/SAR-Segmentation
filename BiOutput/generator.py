@@ -35,12 +35,12 @@ def generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
         yield batch_input, batch_output
 
 
-def normalize_generator(generator, normalization_function, apply_on_output=False):
+def normalize_generator(generator, normalizer, apply_on_output=False):
     while True:
         batch_input, batch_output = next(generator)
-        batch_input = normalization_function(batch_input)
+        batch_input = normalizer(batch_input)
         if apply_on_output:
-            batch_output[1] = normalization_function(batch_output[1])
+            batch_output[1] = normalizer(batch_output[1])
 
         yield batch_input, batch_output
 

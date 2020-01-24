@@ -12,7 +12,7 @@ import deprecation_warnings
 from keras.callbacks import ModelCheckpoint
 
 from data import get_dataset_roots
-from Rignak_DeepLearning.normalization import intensity_normalization
+from Rignak_DeepLearning.normalization import NORMALIZATION_FUNCTIONS
 from Rignak_DeepLearning.noise import get_uniform_noise_function
 from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCallback, ConfusionCallback, \
     ClassificationExampleCallback
@@ -29,7 +29,7 @@ from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHist
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
     thumbnail_generator as thumb_generator, normalize_generator, augment_generator, regressor_generator, \
     rotsym_augmentor
-# from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
+from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
 from Rignak_DeepLearning.config import get_config
 
 """
@@ -40,6 +40,7 @@ from Rignak_DeepLearning.config import get_config
 >>> python train.py mnist mnist batch_size=256
 >>> python train.py style_transfer colorization 
 >>> python train.py bimode waifu 
+>>> python train.py inceptionV3 chen --NORMALIZATION=fourier --NAME=chen_fourier --INPUT_SHAPE=(256,256,3)
 """
 
 BATCH_SIZE = 16
@@ -108,58 +109,59 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
     return functions[task]()
 
 
-def get_data_augmentation(task, train_generator, val_generator, callback_generator):
+def get_data_augmentation(config, task, train_generator, val_generator, callback_generator):
     def get_im2im_data_augmentation():
         new_train_generator = normalize_generator(
             augment_generator(train_generator, noise_function=noise_function, apply_on_output=True),
-            normalization_function, apply_on_output=True)
+            normalizer, apply_on_output=True)
         new_val_generator = normalize_generator(
             augment_generator(val_generator, noise_function=noise_function, apply_on_output=True),
-            normalization_function, apply_on_output=True)
+            normalizer, apply_on_output=True)
         new_callback_generator = normalize_generator(
             augment_generator(callback_generator, noise_function=noise_function, apply_on_output=True),
-            normalization_function, apply_on_output=True)
+            normalizer, apply_on_output=True)
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_bimode_augmentation():
         # new_train_generator = bimode_normalize(
         #     bimode_augment(train_generator, noise_function=noise_function, apply_on_output=True),
-        #     normalization_function, apply_on_output=True)
+        #     normalizer, apply_on_output=True)
         # new_val_generator = bimode_normalize(
-        #     bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True), normalization_function,
+        #     bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True), normalizer,
         #     apply_on_output=True)
         # new_callback_generator = bimode_normalize(
         #     bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True),
-        #     normalization_function, apply_on_output=True)
+        #     normalizer, apply_on_output=True)
 
-        new_train_generator = bimode_normalize(train_generator, normalization_function, apply_on_output=True)
-        new_val_generator = bimode_normalize(val_generator, normalization_function, apply_on_output=True)
-        new_callback_generator = bimode_normalize(callback_generator, normalization_function, apply_on_output=True)
+        new_train_generator = bimode_normalize(train_generator, normalizer, apply_on_output=True)
+        new_val_generator = bimode_normalize(val_generator, normalizer, apply_on_output=True)
+        new_callback_generator = bimode_normalize(callback_generator, normalizer, apply_on_output=True)
 
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_categorizer_augmentation():
         new_train_generator = normalize_generator(
             augment_generator(train_generator, noise_function=noise_function, apply_on_output=False),
-            normalization_function, apply_on_output=False)
+            normalizer, apply_on_output=False)
 
-        new_val_generator = normalize_generator(val_generator, normalization_function, apply_on_output=False)
+        new_val_generator = normalize_generator(val_generator, normalizer, apply_on_output=False)
 
         new_callback_generator = normalize_generator(
             augment_generator(callback_generator, noise_function=noise_function, apply_on_output=False),
-            normalization_function, apply_on_output=False)
+            normalizer, apply_on_output=False)
 
         # new_train_generator = rotsym_augmentor(new_train_generator)
         # new_val_generator = rotsym_augmentor(new_val_generator)
         # new_callback_generator = rotsym_augmentor(new_callback_generator)
 
-        return train_generator, val_generator, callback_generator
+        return new_train_generator, new_val_generator, new_callback_generator
 
     def get_regressor_augmentation():
         return train_generator, val_generator, callback_generator
 
     print('ADD DATA-AUGMENTATION')
-    normalization_function = intensity_normalization(f=1/255)[0]
+
+    normalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'intensity')]()[0]
     noise_function = get_uniform_noise_function()
 
     functions = {"style_transfer": get_im2im_data_augmentation,
@@ -246,13 +248,13 @@ def get_callbacks(config, task, model, callback_generator):
     def get_im2im_callbacks():
         callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
-                     AutoencoderExampleCallback(callback_generator)]
+                     AutoencoderExampleCallback(callback_generator, denormalizer=denormalizer)]
         return callbacks
 
     def get_bimode_callbacks():
         callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
                      BimodeHistoryCallback(),
-                     BimodeExampleCallback(callback_generator),
+                     BimodeExampleCallback(callback_generator, denormalizer=denormalizer),
                      ConfusionCallback(callback_generator, model.labels)]
         return callbacks
 
@@ -260,7 +262,7 @@ def get_callbacks(config, task, model, callback_generator):
         callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
                      ConfusionCallback(callback_generator, model.labels),
-                     ClassificationExampleCallback(callback_generator)]
+                     ClassificationExampleCallback(callback_generator, denormalizer=denormalizer)]
         return callbacks
 
     def get_regressor_callback():
@@ -269,9 +271,14 @@ def get_callbacks(config, task, model, callback_generator):
                      GanRegressorExampleCallback(callback_generator,
                                                  gan_filename=config[task]["GAN_FILENAME"],
                                                  layer_number=config[task].get('LAYER_NUMBER', 1),
-                                                 truncation_psi=config[task].get("TRUNCATION_PSI", 1)
+                                                 truncation_psi=config[task].get("TRUNCATION_PSI", 1),
+                                                 denormalizer=denormalizer
                                                  )]
         return callbacks
+
+    print(config[task])
+    denormalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'intensity')]()[1]
+    print(config[task].get('NORMALIZATION', 'intensity'))
 
     print('PUTING LANDMARKS')
     functions = {"saliency": get_im2im_callbacks,
@@ -297,8 +304,8 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
 
     train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
     train_generator, val_generator, callback_generator, train_dir = get_generators(config, task, dataset, batch_size)
-    train_generator, val_generator, callback_generator = get_data_augmentation(task, train_generator, val_generator,
-                                                                               callback_generator)
+    train_generator, val_generator, callback_generator = get_data_augmentation(config, task, train_generator,
+                                                                               val_generator, callback_generator)
     name = config[task].get('NAME', f'{dataset}_{task}')
     model = get_models(config, task, name, train_folder, load=initial_epoch != 0)
     callbacks = get_callbacks(config, task, model, callback_generator)
