@@ -8,8 +8,8 @@ from Rignak_DeepLearning.data import read
 
 BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
-ZOOM = 0.0
-ROTATION = 0
+ZOOM = 0.2
+ROTATION = 30
 
 
 def autoencoder_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
@@ -28,16 +28,20 @@ def make_categorizer_output(index, label_number):
 
 def categorizer_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
     folders = [folder for folder in os.listdir(root) if os.path.isdir(os.path.join(root, folder))]
-    tags = {os.path.join(root, folder, filename): make_categorizer_output(folders.index(folder), len(folders))
-            for folder in folders
-            for filename in os.listdir(os.path.join(root, folder))}
-    filenames = list(tags.keys())
+    filename_to_hot_label = {os.path.join(root, folder, filename): make_categorizer_output(folders.index(folder),
+                                                                                           len(folders))
+                             for folder in folders
+                             for filename in os.listdir(os.path.join(root, folder))}
+    label_to_filename = {folder: [os.path.join(root, folder, filename)
+                                  for filename in os.listdir(os.path.join(root, folder))]
+                         for folder in folders}
 
     while True:
-        batch_path = np.random.choice(filenames, size=batch_size)
+        batch_labels = np.random.choice(folders, size=batch_size)
+        batch_path = np.array([np.random.choice(label_to_filename[label]) for label in batch_labels])
 
         batch_input = np.array([read(path, input_shape=input_shape) for path in batch_path])
-        batch_output = np.array([tags[filename] for filename in batch_path])
+        batch_output = np.array([filename_to_hot_label[filename] for filename in batch_path])
         yield batch_input, batch_output
 
 

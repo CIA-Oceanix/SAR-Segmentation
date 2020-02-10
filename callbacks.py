@@ -62,6 +62,9 @@ class HistoryCallback(Callback):
 
         plt.tight_layout()
         plt.savefig(os.path.join(self.root, f'{self.model.name}.png'))
+        np.save(os.path.join(self.root, f'{self.model.name}.npy'), {'x': self.x, 'acc': self.accuracy,
+                                                                    'val_acc': self.val_accuracy, 'losses': self.losses,
+                                                                    'val_losses': self.val_losses})
         plt.close()
 
 

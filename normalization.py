@@ -72,8 +72,37 @@ def fourier_normalization():
     return normalize, denormalize
 
 
+def fourier_only():
+    def image_normalization(im):
+        if len(im.shape) == 2:
+            im = np.expand_dims(im, axis=-1)
+        for canal in range(im.shape[2]):
+            ft, _, _ = fourier_transform(im[:, :, canal], remove_center=True)
+            im[:, :, canal] = np.abs(ft)
+        return im
+
+    def normalize(batch):
+        if len(batch.shape) == 4:
+            for i, frequency_image in enumerate(batch):
+                batch[i] = image_normalization(frequency_image)
+        else:
+            batch = image_normalization(batch)
+        return batch
+
+    def denormalize(batch):
+        if len(batch.shape) == 4:
+            for i, frequency_image in enumerate(batch):
+                batch[i] /= np.max(batch[i])
+        else:
+                batch /= np.max(batch)
+        return batch
+
+    return normalize, denormalize
+
+
 NORMALIZATION_FUNCTIONS = {'intensity': intensity_normalization,
                            'tanh': tanh_normalization,
                            'log': log_normalization,
                            'none': fake_normalization,
-                           'fourier': fourier_normalization}
+                           'fourier': fourier_normalization,
+                           'fourier_only': fourier_only}

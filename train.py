@@ -40,7 +40,9 @@ from Rignak_DeepLearning.config import get_config
 >>> python train.py mnist mnist batch_size=256
 >>> python train.py style_transfer colorization 
 >>> python train.py bimode waifu 
->>> python train.py inceptionV3 chen --NORMALIZATION=fourier --NAME=chen_fourier --INPUT_SHAPE=(256,256,3)
+>>> python train.py inceptionV3 chen --NORMALIZATION=fourier --NAME=TenGeoP_fourier --INPUT_SHAPE="(256,256,3) --epochs=15"
+>>> python train.py inceptionV3 chen --NORMALIZATION=fourier_only --NAME=TenGeoP_fourier_only --INPUT_SHAPE="(256,256,1) --epochs=15"
+
 """
 
 BATCH_SIZE = 16
@@ -324,7 +326,8 @@ def train(model, train_generator, val_generator, callbacks, training_steps=TRAIN
                         epochs=epochs,
                         callbacks=callbacks,
                         initial_epoch=initial_epoch,
-                        class_weight=model.class_weight)
+                        #class_weight=model.class_weight
+                        )
 
 
 if __name__ == '__main__':

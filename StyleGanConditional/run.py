@@ -19,7 +19,7 @@ import skimage
 
 from Rignak_Misc.path import get_local_file
 
-DEFAULT_MODEL = 'network-snapshot-010022.pkl'
+DEFAULT_MODEL = 'network-snapshot-007750.pkl'
 LAYER_NUMBER = 12
 RESULT_ROOT = get_local_file(__file__, 'results')
 TRUNCATION_PSI = 1.0
@@ -28,28 +28,31 @@ THUMB_SIZE = 128
 ### Add labels
 LABELS = [(label, np.eye(8)[i])
           for i, label in enumerate(("Blue Mountain", "Chino", "Chiya", "Cocoa", "Maya", "Megumi", "Rize", "Sharo"))]
+LABELS = [(label, np.eye(10)[i])
+          for i, label in enumerate(("Atm Front", "Bio Slick", "Iceberg", "Low Wind", "Conv Cells", "Oceanic Front",
+                                     "Ocean Waves", "Rain Cells", "Sea Ice", "Wind Streaks"))]
 
 # Add even combination labels
-LABELS.append((f"{LABELS[2][0]}+{LABELS[6][0]}", LABELS[2][1] + LABELS[6][1]))
-LABELS.append((f"0.5x{LABELS[2][0]}+0.5x{LABELS[6][0]}", 0.5 * LABELS[2][1] + 0.5 * LABELS[6][1]))
-LABELS.append((f"{LABELS[2][0]}+{LABELS[6][0]}", LABELS[2][1] + LABELS[6][1]))
-
-# Add uneven combinations
-for a, b in [(0.0, 1.0), (0.25, 0.75), (0.5, 0.5), (0.75, 0.25)]:
-    LABELS.append((f"{a}x{LABELS[2][0]}+{b}x{LABELS[6][0]}", a * LABELS[2][1] + b * LABELS[6][1]))
+# LABELS.append((f"{LABELS[2][0]}+{LABELS[6][0]}", LABELS[2][1] + LABELS[6][1]))
+# LABELS.append((f"0.5x{LABELS[2][0]}+0.5x{LABELS[6][0]}", 0.5 * LABELS[2][1] + 0.5 * LABELS[6][1]))
+# LABELS.append((f"{LABELS[2][0]}+{LABELS[6][0]}", LABELS[2][1] + LABELS[6][1]))
+#
+# # Add uneven combinations
+# for a, b in [(0.0, 1.0), (0.25, 0.75), (0.5, 0.5), (0.75, 0.25)]:
+#     LABELS.append((f"{a}x{LABELS[2][0]}+{b}x{LABELS[6][0]}", a * LABELS[2][1] + b * LABELS[6][1]))
 
 # Add ALL and NONE
-LABELS.append((f"None", np.zeros(8)))
-LABELS.append((f"All", np.ones(8)))
+LABELS.append((f"None", np.zeros(10)))
+LABELS.append((f"All", np.ones(10)))
 
-NUMBER_OF_PICTURES = 10 * len(LABELS)
+NUMBER_OF_PICTURES = 100 * len(LABELS)
 
 
 def get_generative(model, truncation_psi=TRUNCATION_PSI):
     def generative(latents, label_input=None):
         if len(latents.shape) == 1:
             latents = np.expand_dims(latents, 0)
-        return model.run(latents, label_input, randomize_noise=False, truncation_psi=truncation_psi, use_noise=False,
+        return model.run(latents, label_input, randomize_noise=True, truncation_psi=truncation_psi, use_noise=True,
                          output_transform=fmt)
 
     fmt = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)
@@ -96,12 +99,13 @@ def main(model_filename=DEFAULT_MODEL, truncation_psi=TRUNCATION_PSI, result_roo
                                 f"{os.path.splitext(os.path.split(model_filename)[-1])[0]}_{label_name}_{i}")
         if images.shape[-1] == 1:
             image = skimage.transform.resize(images[0, :, :, 0], (thumb_size, thumb_size))
-            im = PIL.Image.fromarray(image)
-            im.save(f"{filename}.png")
+            image = (np.expand_dims(image, axis=-1)[:,:,[0,0,0]]*255).astype('uint8')
+            image = PIL.Image.fromarray(image)
         else:
             image = PIL.Image.fromarray(images[0], 'RGB')
-            image.resize((thumb_size, thumb_size), PIL.Image.BICUBIC).save(f"{filename}.png")
+        image = image.resize((thumb_size, thumb_size), PIL.Image.BICUBIC)
         np.save(f'{filename}.npy', truncation_output[0])
+        image.save(f"{filename}.png")
 
 
 if __name__ == "__main__":
