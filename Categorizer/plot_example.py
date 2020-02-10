@@ -9,10 +9,9 @@ def plot_example(example, prediction, labels, limit=LIMIT, denormalizer=None):
     input_, truth = example
     input_ = input_[:limit]
     n = input_.shape[0]
-    plt.figure(figsize=(18, 8))
+    plt.figure(figsize=(27, 12))
     plt.tight_layout()
     for i, (im, classes) in enumerate(zip(input_, prediction)):
-        print('plot_example.py', denormalizer)
         if i != 0:
             tick_label = [' ' for _ in labels]
         else:
