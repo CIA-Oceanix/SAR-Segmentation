@@ -1,29 +1,78 @@
 import numpy as np
 
-DEFAULT_NOISE = 0.
-DEFAULT_DISABLE_PIXEL = 1/3
+DEFAULT_NOISE = 0.2
+DEFAULT_CATEGORISATION_NOISE = 0.2
+DEFAULT_DISABLE_PIXEL = 1 / 3
+DEFAULT_CONTRAST = 0.5
+
 
 def get_uniform_noise_function(f=DEFAULT_NOISE):
-    def uniform_noise(x):  # std is around 0.35
+    def uniform_noise(x, y):  # std is around 0.35
         xmax = np.max(x)
         xmin = np.min(x)
         noise = f * x.std() * (2 * np.random.random(x.shape) - 1)
         x = x.astype('float64')
         x += noise
-        x[x > xmax] = xmax
-        x[x < xmin] = xmin
-        return x
+        x = np.maximum(x, xmax)
+        x = np.minimum(x, xmin)
+        return x, y
 
     return uniform_noise
 
 
 def get_disable_pixel_function(f=DEFAULT_DISABLE_PIXEL):
-    def disable_pixel(x):
+    def disable_pixel(x, y):
         for i in range(x.shape[0]):
             r = np.random.random(x.shape[2])
             x[i, r < f] = 0
             r = np.random.random(x.shape[2])
             x[i, :, r < f] = 0
-        return x
+        return x, y
 
     return disable_pixel
+
+
+def get_contrast_noise_function(f=DEFAULT_CONTRAST):
+    def contrast_noise_function(x, y):
+        xmax = np.max(x)
+        xmin = np.min(x)
+        random_f = 1 + f * (np.random.random() - 0.5) * 2
+        new_x = ((x / xmax) ** random_f) * xmax
+        new_x = np.maximum(new_x, xmin)
+        new_x = np.minimum(new_x, xmax)
+        return new_x, y
+
+    return contrast_noise_function
+
+
+def get_categorization_noise_function(f=DEFAULT_CATEGORISATION_NOISE):
+    def categorization_noise_function(x, y):
+        random_f = f * (np.random.random() - 0.5) * 2
+        new_y = y + random_f
+        new_y = np.maximum(new_y, 1)
+        new_y = np.minimum(new_y, 0)
+        return x, new_y
+
+    return categorization_noise_function
+
+
+def get_composition(functions):
+    def apply_composition(x, y):
+        new_x = x
+        new_y = y
+        for function in functions:
+            new_x, new_y = NOISE_FUNCTIONS[function](new_x, new_y)
+        return new_x
+
+    return apply_composition
+
+
+def get_none_noise():
+    return lambda x: x
+
+
+NOISE_FUNCTIONS = {'uniform': get_uniform_noise_function(),
+                   'contrast': get_contrast_noise_function(),
+                   'composition': get_composition,
+                   'categorization': get_categorization_noise_function(),
+                   None: get_none_noise()}

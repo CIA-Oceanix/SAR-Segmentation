@@ -1,28 +1,31 @@
 import tensorflow as tf
 import numpy as np
-import dnnlib.tflib as tflib
+# import dnnlib.tflib as tflib
+import Rignak_DeepLearning.StyleGan.dnnlib.tflib as tflib
 from functools import partial
 
 LAYER_NUMBER = 18
+LATENT_SIZE = 512
 
 
 def create_stub(name, batch_size):
     return tf.constant(0, dtype='float32', shape=(batch_size, 0))
 
 
-def create_variable_for_generator(name, batch_size, layer_number=LAYER_NUMBER):
+def create_variable_for_generator(name, batch_size, layer_number=LAYER_NUMBER, latent_size=LATENT_SIZE):
     return tf.get_variable('learnable_dlatents',
-                           shape=(batch_size, layer_number, 512),
+                           shape=(batch_size, layer_number, latent_size),
                            dtype='float32',
                            initializer=tf.initializers.random_normal())
 
 
 class Generator:
-    def __init__(self, model, batch_size, randomize_noise=False, use_noise=False, layer_number=LAYER_NUMBER, truncation_psi=0.1):
+    def __init__(self, model, batch_size, randomize_noise=False, use_noise=False, layer_number=LAYER_NUMBER,
+                 truncation_psi=0.1, latent_size=LATENT_SIZE):
         self.batch_size = batch_size
         self.layer_number = layer_number
 
-        self.initial_dlatents = np.zeros((self.batch_size, layer_number, 512))
+        self.initial_dlatents = np.zeros((self.batch_size, layer_number, latent_size))
         model.components.synthesis.run(self.initial_dlatents,
                                        truncation_psi=truncation_psi,
                                        use_noise=use_noise,
@@ -47,8 +50,8 @@ class Generator:
     def reset_dlatents(self):
         self.set_dlatents(self.initial_dlatents)
 
-    def set_dlatents(self, dlatents):
-        assert (dlatents.shape == (self.batch_size, self.layer_number, 512))
+    def set_dlatents(self, dlatents, latent_size=LATENT_SIZE):
+        assert (dlatents.shape == (self.batch_size, self.layer_number, latent_size))
         if self.dlatents_placeholder is None:
             self.dlatents_placeholder = tf.placeholder(np.float32, shape=dlatents.shape)
             self.dlatents_update_operation = self.dlatent_variable.assign(self.dlatents_placeholder)
@@ -59,7 +62,7 @@ class Generator:
     def get_dlatents(self):
         return self.sess.run(self.dlatent_variable)
 
-    def generate_images(self, dlatents=None):
+    def generate_images_tensor(self, dlatents=None):
         if dlatents:
             self.set_dlatents(dlatents)
         return self.sess.run(self.generated_image_uint8)
@@ -76,5 +79,5 @@ class Generator:
                 res.append(self.sess.run(self.generated_image_uint8)[0])
         else:
             res = self.sess.run(self.generated_image_uint8)
-
+        res = np.array(res)
         return res

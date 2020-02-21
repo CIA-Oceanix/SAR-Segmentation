@@ -11,7 +11,7 @@ import os
 import pickle
 import PIL.Image
 import fire
-import dnnlib.tflib as tflib
+import Rignak_DeepLearning.StyleGan.dnnlib.tflib as tflib
 import numpy as np
 import tqdm
 import tensorflow as tf

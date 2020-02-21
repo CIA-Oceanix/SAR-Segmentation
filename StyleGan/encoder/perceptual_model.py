@@ -34,11 +34,24 @@ class PerceptualModel:
         self.features_weight = None
         self.loss = None
 
-    def build_perceptual_model(self, generated_image_tensor):
-        vgg16 = VGG16(include_top=False, input_shape=(self.img_size, self.img_size, 3))
-        self.perceptual_model = Model(vgg16.input, vgg16.layers[self.layer].output)
+        # TODO REMOVE
+        mask = np.zeros((1, 512, 512, 3))
+        mask[:, mask.shape[0] // 2] = 1
+        mask[:, :, mask.shape[1] // 2] = 1
+        self.mask = tf.convert_to_tensor(mask, dtype='float32')
+
+    def build_perceptual_model(self, generated_image_tensor, model=None):
+        if model is None:
+            # vgg16 = VGG16(include_top=False, input_shape=(self.img_size, self.img_size, 3))
+            vgg16 = VGG16(include_top=False, input_shape=(self.img_size // 2, self.img_size // 2, 3))
+            self.perceptual_model = Model(vgg16.input, vgg16.layers[self.layer].output)
+        else:
+            self.perceptual_model = model
         generated_image = preprocess_input(tf.image.resize_images(generated_image_tensor,
                                                                   (self.img_size, self.img_size), method=1))
+        # generated_image = tf.math.multiply(generated_image, self.mask)
+        # generated_img_features = self.perceptual_model(generated_image)
+        generated_image = tf.convert_to_tensor(generated_image[:, :self.img_size // 2, :self.img_size // 2])
         generated_img_features = self.perceptual_model(generated_image)
 
         self.ref_img_features = tf.get_variable('ref_img_features', shape=generated_img_features.shape,
@@ -52,8 +65,12 @@ class PerceptualModel:
 
     def set_reference_images(self, images_list):
         assert (len(images_list) != 0 and len(images_list) <= self.batch_size)
-        loaded_image = load_images(images_list, self.img_size)
-        image_features = self.perceptual_model.predict_on_batch(loaded_image)
+        self.loaded_image = load_images(images_list, self.img_size)
+        # self.loaded_image = tf.math.multiply(self.loaded_image, self.mask)
+        # image_features = self.perceptual_model.predict_on_batch(self.loaded_image)
+        self.loaded_image = tf.convert_to_tensor(self.loaded_image[:, :self.img_size // 2, :self.img_size // 2])
+        image_features = self.perceptual_model(self.loaded_image)
+
 
         # in case if number of images less than actual batch size
         # can be optimized further
@@ -93,4 +110,3 @@ class PerceptualModel:
         im1_features = self.get_features_from_latent(latent1.tobytes(), latent1.shape, latent1.dtype)
         im2_features = self.get_features_from_latent(latent2.tobytes(), latent2.shape, latent2.dtype)
         return ((np.ravel(im1_features) - np.ravel(im2_features)) ** 2).mean() / 82890.0
-

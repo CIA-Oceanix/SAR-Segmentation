@@ -52,7 +52,7 @@ def get_generative(model, truncation_psi=TRUNCATION_PSI):
     def generative(latents, label_input=None):
         if len(latents.shape) == 1:
             latents = np.expand_dims(latents, 0)
-        return model.run(latents, label_input, randomize_noise=True, truncation_psi=truncation_psi, use_noise=True,
+        return model.run(latents, label_input, randomize_noise=False, truncation_psi=truncation_psi, use_noise=True,
                          output_transform=fmt)
 
     fmt = dict(func=tflib.convert_images_to_uint8, nchw_to_nhwc=True)

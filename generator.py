@@ -118,7 +118,7 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
                         batch_output[i] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
 
         if noise_function is not None:
-            batch_input = noise_function(batch_input)
+            batch_input, batch_output = noise_function(batch_input, batch_output)
         yield batch_input, batch_output
 
 

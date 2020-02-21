@@ -1,9 +1,9 @@
 import numpy as np
-#import imutils
+import imutils
 from functools import lru_cache
 
 from keras.applications.vgg16 import VGG16
-from keras.models import Model
+from keras.models import Model, load_model
 from keras import backend as K
 
 
@@ -32,19 +32,19 @@ def decode(encoded):
     return decoded
 
 
-def get_perceptual_loss(input_size, layer_number=9, generative=None, features_only=False):
+def get_perceptual_loss(input_size, layer_number=9, generative=None, features_only=False, model_path=None):
     @lru_cache(maxsize=64)
     def get_features_from_encoded_latent(encoded):
         input_batch = decode(encoded)
         input_batch = np.array(generative(input_batch))
         return get_features(input_batch)
 
-    def get_features(input_batch):
+    def get_features(input_batch, f=255):
         if len(input_batch.shape) == 3:
             input_batch = np.expand_dims(input_batch, 0)
-        if input_batch.shape[-2] == input_size or input_batch.shape[-3] != input_size:
+        if input_batch.shape[-2] != input_size or input_batch.shape[-3] != input_size:
             input_batch = np.array([imutils.resize(image, input_size) for image in input_batch])
-        features = perceptual_model.predict(input_batch)
+        features = perceptual_model.predict(input_batch / f)
         return features
 
     def perceptual_loss(input_batch, output_batch, args_are_features=False):
@@ -60,13 +60,19 @@ def get_perceptual_loss(input_size, layer_number=9, generative=None, features_on
 
         losses = []
         for input_features, output_features in zip(input_batch_features, output_batch_features):
-            losses.append(((np.ravel(input_features) - np.ravel(output_features)) ** 2).mean() / 82890.0)
+            losses.append(((np.ravel(input_features) - np.ravel(output_features)) ** 2).mean())
         return sum(losses)
 
-    vgg16 = VGG16(include_top=False, input_shape=(input_size, input_size, 3))
-    perceptual_model = Model(vgg16.input, vgg16.layers[layer_number].output)
+    if model_path is None:
+        model = VGG16(include_top=False, input_shape=(input_size, input_size, 3))
+    else:
+        model = load_model(model_path)
+    perceptual_model = Model(model.input, model.layers[layer_number].output)
     if features_only:
-        return get_features_from_encoded_latent
+        if generative is not None:
+            return get_features_from_encoded_latent
+        else:
+            return get_features
     else:
         return perceptual_loss
 

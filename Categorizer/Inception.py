@@ -2,9 +2,9 @@ import os
 import sys
 
 from keras.applications.inception_v3 import InceptionV3
-from keras.optimizers import SGD, rmsprop
 from keras.layers import Dense, GlobalAveragePooling2D, Input, concatenate
 from keras.models import Model
+from keras_radam.training import RAdamOptimizer
 
 from Rignak_DeepLearning.Categorizer.flat import WEIGHT_ROOT, SUMMARY_ROOT
 
@@ -45,10 +45,12 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
     if imagenet == "fine-tuning":
         for layer in model.layers[:-1]:
             layer.trainable = False
+
+    optimizer = RAdamOptimizer(1e-3)
     if class_weight is not None:
-        model.compile(optimizer='adam', loss=loss, metrics=metrics)
+        model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     else:
-        model.compile(optimizer='adam', loss=loss, metrics=metrics)
+        model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     if weights is None:
         model.name = f"{name}_False"
