@@ -13,7 +13,7 @@ deprecation_warnings.filter_warnings()
 
 from keras.callbacks import ModelCheckpoint
 
-from data import get_dataset_roots
+from Rignak_DeepLearning.data import get_dataset_roots
 from Rignak_DeepLearning.normalization import NORMALIZATION_FUNCTIONS
 from Rignak_DeepLearning.noise import NOISE_FUNCTIONS
 from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCallback, ConfusionCallback, \
@@ -51,7 +51,7 @@ python train.py inceptionV3 waifu2latent --NOISE=[contrast,uniform] --NORMALIZAT
 python train.py inceptionV3 waifu_faces --NOISE=[contrast,uniform] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=waifu_faces2latent_256 --INPUT_SHAPE="(256,256,3)" --batch_size=4
 
 python train.py inceptionV3 --NOISE=[categorization] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=TenGeoP-SARwv_512 --INPUT_SHAPE="(512,512,1)" --batch_size=4 --epochs=25
-python train.py heatmap "TenGeoP-SARwv_heatmap/Atmospheric Front" --NORMALIZATION=intensity --NAME=TENGEOP-SARwv_icebergs_heatmap --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR, --OUTPUT_LABEL="HEAT"
+python train.py heatmap "TenGeoP-SARwv_heatmap\Atmospheric Front" --NORMALIZATION=intensity --NAME=TENGEOP-SARwv_icebergs_heatmap --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT
 """
 
 BATCH_SIZE = 16
@@ -190,7 +190,7 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
     print('ADD DATA-AUGMENTATION')
 
     normalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'intensity')]()[0]
-    noise_function = NOISE_FUNCTIONS['composition'](config[task].get('NOISE', None))
+    noise_function = NOISE_FUNCTIONS['composition'](config[task].get('NOISE', [None]))
 
     functions = {"style_transfer": get_im2im_data_augmentation,
                  "saliency": get_im2im_data_augmentation,
@@ -203,6 +203,7 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
                  "multiscale_bimode": get_bimode_augmentation,
                  "regressor": get_regressor_augmentation,
                  }
+    assert task in functions, f'You asked for {task}, but functions.keys is {list(functions.keys())}'
     return functions[task]()
 
 
@@ -275,6 +276,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
                  "multiscale_bimode": get_multiscale_bimode_model,
                  "regressor": get_regressor_model,
                  }
+    assert task in functions, f'You asked for {task}, but functions.keys is {list(functions.keys())}'
     return functions[task]()
 
 
@@ -317,6 +319,7 @@ def get_callbacks(config, task, model, callback_generator):
     print('PUTING LANDMARKS')
     functions = {"saliency": get_im2im_callbacks,
                  "autoencoder": get_im2im_callbacks,
+                 "heatmap": get_im2im_callbacks,
                  "flat_autoencoder": get_im2im_callbacks,
                  "style_transfer": get_im2im_callbacks,
                  "categorizer": get_categorizer_callbacks,
@@ -325,6 +328,7 @@ def get_callbacks(config, task, model, callback_generator):
                  "multiscale_bimode": get_bimode_callbacks,
                  "regressor": get_regressor_callback,
                  }
+    assert task in functions, f'You asked for {task}, but functions.keys is {list(functions.keys())}'
     return functions[task]()
 
 

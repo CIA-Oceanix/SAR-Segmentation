@@ -62,13 +62,13 @@ def get_composition(functions):
         new_y = y
         for function in functions:
             new_x, new_y = NOISE_FUNCTIONS[function](new_x, new_y)
-        return new_x
+        return new_x, new_y
 
     return apply_composition
 
 
 def get_none_noise():
-    return lambda x: x
+    return lambda x, y: (x, y)
 
 
 NOISE_FUNCTIONS = {'uniform': get_uniform_noise_function(),

@@ -15,18 +15,18 @@ def plot_less_than_three_canals(input_, prediction, groundtruth, labels, denorma
 
     for i, im in enumerate(input_):
         plt.subplot(line_number, col_number, 1 + i)
-        imshow(input_[i], denormalizer=denormalizer)
+        imshow(input_[i], denormalizer=denormalizer, vmin=0, vmax=255)
         if not i and labels is not None:
             plt.title(labels[0])
 
         plt.subplot(line_number, col_number, i + 1 + col_number)
-        imshow(prediction[i], denormalizer=denormalizer)
+        imshow(prediction[i], denormalizer=denormalizer, vmin=0, vmax=255)
         if not i and labels is not None:
             plt.title(labels[1])
 
         if line_number == 3:
             plt.subplot(line_number, col_number, i + 1 + col_number * 2)
-            imshow(groundtruth[i], denormalizer=denormalizer)
+            imshow(groundtruth[i], denormalizer=denormalizer, vmin=0, vmax=255)
             if not i and labels is not None:
                 plt.title(labels[2])
 

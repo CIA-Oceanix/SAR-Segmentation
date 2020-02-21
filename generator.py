@@ -8,8 +8,8 @@ from Rignak_DeepLearning.data import read
 
 BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
-ZOOM = 0.2
-ROTATION = 30
+ZOOM = 0.0
+ROTATION = 0
 
 
 def autoencoder_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
@@ -87,6 +87,7 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
     while True:
         batch_input, batch_output = next(generator)
         input_shape = batch_input.shape[1:3]
+        output_shape = batch_output.shape[1:3]
 
         angles = (np.random.random(size=batch_input.shape[0]) - 0.5) * rotation
         zooms = 1 + (np.random.random(size=batch_input.shape[0]) - 0.5) * zoom_factor * 2
@@ -108,14 +109,14 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
             if apply_on_output:
                 if batch_output.shape[1] == 2:
                     if batch_output.shape[-1] == 1:
-                        batch_output[i, 1, :, :, 0] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
+                        batch_output[i, 1, :, :, 0] = cv2.warpAffine(output, rotation_matrix, output_shape[:2])
                     else:
-                        batch_output[i, 1] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
+                        batch_output[i, 1] = cv2.warpAffine(output, rotation_matrix, output_shape[:2])
                 else:
                     if batch_output.shape[-1] == 1:
-                        batch_output[i, :, :, 0] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
+                        batch_output[i, :, :, 0] = cv2.warpAffine(output, rotation_matrix, output_shape[:2])
                     else:
-                        batch_output[i] = cv2.warpAffine(output, rotation_matrix, input_shape[:2])
+                        batch_output[i] = cv2.warpAffine(output, rotation_matrix, output_shape[:2])
 
         if noise_function is not None:
             batch_input, batch_output = noise_function(batch_input, batch_output)
