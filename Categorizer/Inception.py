@@ -65,6 +65,7 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
         print('load weights')
         model.load_weights(model.weight_filename)
 
+    os.makedirs(os.path.split(model.summary_filename)[0], exist_ok=True)
     with open(model.summary_filename, 'w') as file:
         old = sys.stdout
         sys.stdout = file

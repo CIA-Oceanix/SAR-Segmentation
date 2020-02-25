@@ -63,6 +63,7 @@ def import_model(output_canals, labels, weight_root=WEIGHT_ROOT, summary_root=SU
         print('load weights')
         model.load_weights(weight_filename)
 
+    os.makedirs(os.path.split(summary_filename)[0], exist_ok=True)
     with open(summary_filename, 'w') as file:
         old = sys.stdout
         sys.stdout = file

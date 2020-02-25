@@ -28,6 +28,8 @@ class HistoryCallback(Callback):
         self.root = root
 
     def on_train_begin(self, logs=None):
+        filename = os.path.join(self.root, f'{self.model.name}.png')
+        os.makedirs(os.path.split(filename)[0], exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
@@ -77,7 +79,8 @@ class ExampleCallback(Callback):
         self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
-        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
+        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
+        os.makedirs(os.path.split(filename)[0], exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs=None):

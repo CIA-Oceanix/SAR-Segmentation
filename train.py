@@ -17,7 +17,7 @@ from Rignak_DeepLearning.data import get_dataset_roots
 from Rignak_DeepLearning.normalization import NORMALIZATION_FUNCTIONS
 from Rignak_DeepLearning.noise import NOISE_FUNCTIONS
 from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCallback, ConfusionCallback, \
-    ClassificationExampleCallback
+    ClassificationExampleCallback, SaveAttributes
 from Rignak_DeepLearning.Autoencoders.flat import import_model as import_flat_model
 from Rignak_DeepLearning.Autoencoders.unet import import_model as import_unet_model
 from Rignak_DeepLearning.Categorizer.flat import import_model as import_categorizer
@@ -49,9 +49,14 @@ from Rignak_DeepLearning.config import get_config
 
 python train.py inceptionV3 waifu2latent --NOISE=[contrast,uniform] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=waifu2latent_512 --INPUT_SHAPE="(512,512,3)" --batch_size=4
 python train.py inceptionV3 waifu_faces --NOISE=[contrast,uniform] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=waifu_faces2latent_256 --INPUT_SHAPE="(256,256,3)" --batch_size=4
+python train.py saliency open_eyes --NOISE=[contrast] --NORMALIZATION=intensity --NAME=open_eyes_segmentation_256 --INPUT_SHAPE="(256,256,3)" --batch_size=16
 
-python train.py inceptionV3 --NOISE=[categorization] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=TenGeoP-SARwv_512 --INPUT_SHAPE="(512,512,1)" --batch_size=4 --epochs=25
-python train.py heatmap "TenGeoP-SARwv_heatmap\Atmospheric Front" --NORMALIZATION=intensity --NAME=TENGEOP-SARwv_icebergs_heatmap --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT
+python train.py inceptionV3 background --NOISE=[contrast] --NORMALIZATION=intensity --batch_size=4 --IMAGENET=transfer --NAME=waifu_backgrounded --INPUT_SHAPE="(512,512,3)"
+
+python train.py inceptionV3 TenGeoP-SARwv --NOISE=[categorization] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=TenGeoP-SARwv\InceptionV3_512 --INPUT_SHAPE="(512,512,1)" --batch_size=4 --epochs=25
+python train.py inceptionV3 TenGeoP-SARwv --NOISE=[categorization] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=test --INPUT_SHAPE="(128,128,1)" --batch_size=4 --epochs=25 --training_steps=50
+
+nohup python train.py heatmap "TenGeoP-SARwv_heatmaps/Atmospheric Front" --NORMALIZATION=intensity --TenGeoP-SARwv_heatmaps/Atmospheric Front --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --run_on_gpu=2 -epochs=100 > nohup_gpu2.out &
 """
 
 BATCH_SIZE = 16
@@ -238,7 +243,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         return model
 
     def get_bimode_model():
-        model = import_bimode(labels, config=config[task], name=name, load=load)
+        model = import_bimode(output_canals, labels, config=config[task], name=name, load=load)
         model.labels = labels
         model.class_weight = None
         return model
@@ -282,27 +287,33 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
 
 def get_callbacks(config, task, model, callback_generator):
     def get_im2im_callbacks():
-        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
+        callbacks = [SaveAttributes(callback_generator, config[task], root=os.path.split(model.weight_filename)[0]),
+                     ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
                      AutoencoderExampleCallback(callback_generator, denormalizer=denormalizer)]
         return callbacks
 
     def get_bimode_callbacks():
-        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
+        callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels,
+                                    root=os.path.split(model.weight_filename)[0]),
+                     ModelCheckpoint(model.weight_filename, save_best_only=True),
                      BimodeHistoryCallback(),
                      BimodeExampleCallback(callback_generator, denormalizer=denormalizer),
                      ConfusionCallback(callback_generator, model.labels)]
         return callbacks
 
     def get_categorizer_callbacks():
-        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
+        callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels,
+                                    root=os.path.split(model.weight_filename)[0]),
+                     ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
                      ConfusionCallback(callback_generator, model.labels),
                      ClassificationExampleCallback(callback_generator, denormalizer=denormalizer)]
         return callbacks
 
     def get_regressor_callback():
-        callbacks = [ModelCheckpoint(model.weight_filename, save_best_only=True),
+        callbacks = [SaveAttributes(callback_generator, config[task], root=os.path.split(model.weight_filename)[0]),
+                     ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
                      GanRegressorExampleCallback(callback_generator,
                                                  gan_filename=config[task]["GAN_FILENAME"],

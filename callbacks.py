@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import matplotlib
+import json
 
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -15,6 +16,7 @@ from Rignak_DeepLearning.Categorizer.confusion_matrix import compute_confusion_m
 HISTORY_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'history'))
 EXAMPLE_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'example'))
 CONFUSION_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'confusion'))
+MODEL_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'models'))
 
 
 class HistoryCallback(Callback):
@@ -31,6 +33,8 @@ class HistoryCallback(Callback):
         self.root = root
 
     def on_train_begin(self, logs=None):
+        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
+        os.makedirs(os.path.split(filename)[0], exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
@@ -76,7 +80,8 @@ class AutoencoderExampleCallback(Callback):
         self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
-        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
+        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
+        os.makedirs(os.path.split(filename)[0], exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
@@ -92,7 +97,7 @@ class AutoencoderExampleCallback(Callback):
 
         plot_autoencoder_example(example[0], example[2], groundtruth=example[1], labels=self.model.callback_titles,
                                  denormalizer=self.denormalizer)
-        plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
+        plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
 
@@ -105,7 +110,8 @@ class ClassificationExampleCallback(Callback):
         self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
-        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
+        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
+        os.makedirs(os.path.split(filename)[0], exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs=None):
@@ -125,13 +131,44 @@ class ConfusionCallback(Callback):
         self.labels = labels
 
     def on_train_begin(self, logs=None):
-        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
+        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
+        os.makedirs(os.path.split(filename)[0], exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
         confusion_matrix = compute_confusion_matrix(self.model, self.generator, canals=len(self.labels))
         plot_confusion_matrix(confusion_matrix, labels=self.labels)
 
-        plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
+        plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
+
+
+class SaveAttributes(Callback):
+    def __init__(self, generator, config, labels=None, root=MODEL_CALLBACK_ROOT):
+        super().__init__()
+        self.generator = generator
+        self.root = root
+        self.config = config
+        self.saved_logs = []
+        self.labels = labels
+
+    def on_train_begin(self, logs=None):
+        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
+        os.makedirs(os.path.split(filename)[0], exist_ok=True)
+
+    def on_epoch_end(self, epoch, logs=None):
+        self.saved_logs.append(logs.copy())
+        example = next(self.generator)
+
+        val_losses = [log['val_loss'] for log in self.saved_logs]
+        dict_to_save = {"_logs": self.saved_logs, "_labels": self.labels, "_config": self.config}
+        if np.argmax(val_losses) == len(val_losses) - 1:
+            self.input_ = example[0].tolist()
+            self.groundtruth = example[1].tolist()
+            self.output = self.model.predict(example[0]).tolist()
+        dict_to_save['input'] = self.input_
+        dict_to_save['output'] = self.output
+        dict_to_save['groundtruth'] = self.groundtruth
+        with open(os.path.join(self.root, f'{self.model.name}.more.json'), 'w') as file:
+            json.dump(dict_to_save, file, sort_keys=True, indent=4)

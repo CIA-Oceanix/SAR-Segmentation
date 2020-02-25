@@ -36,7 +36,7 @@ def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
     return confusion_matrix
 
 
-def plot_confusion_matrix(confusion_matrix, labels=None, clustering=True):
+def plot_confusion_matrix(confusion_matrix, labels=None, clustering=False):
     if len(labels) == 2:
         clustering = False
     if clustering:

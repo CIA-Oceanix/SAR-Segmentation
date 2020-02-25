@@ -13,8 +13,8 @@ def get_uniform_noise_function(f=DEFAULT_NOISE):
         noise = f * x.std() * (2 * np.random.random(x.shape) - 1)
         x = x.astype('float64')
         x += noise
-        x = np.maximum(x, xmax)
-        x = np.minimum(x, xmin)
+        x = np.maximum(x, xmin)
+        x = np.minimum(x, xmax)
         return x, y
 
     return uniform_noise
@@ -47,10 +47,10 @@ def get_contrast_noise_function(f=DEFAULT_CONTRAST):
 
 def get_categorization_noise_function(f=DEFAULT_CATEGORISATION_NOISE):
     def categorization_noise_function(x, y):
-        random_f = f * (np.random.random() - 0.5) * 2
+        random_f = f * (np.random.random(y.shape) - 0.5) * 2
         new_y = y + random_f
-        new_y = np.maximum(new_y, 1)
-        new_y = np.minimum(new_y, 0)
+        new_y = np.maximum(new_y, 0)
+        new_y = np.minimum(new_y, 1)
         return x, new_y
 
     return categorization_noise_function

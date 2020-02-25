@@ -1,9 +1,9 @@
 import sys
 import os
 
-from keras.optimizers import Adam
 from keras.models import Model, load_model
 from keras.layers import Input, Conv2D, Dropout, concatenate
+from keras_radam.training import RAdamOptimizer
 
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.models import convolution_block
@@ -76,9 +76,10 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
             block, _ = convolution_block(block, neurons, activation=activation, maxpool=False)
 
     outputs = Conv2D(output_canals, (1, 1), activation=last_activation, name='output')(block)
+    optimizer = RAdamOptimizer(learning_rate)
 
     model = Model(inputs=[inputs], outputs=[outputs])
-    model.compile(optimizer=Adam(lr=learning_rate), loss=loss)
+    model.compile(optimizer=optimizer, loss=loss)
 
     model.name = name
     model.weight_filename = weight_filename
@@ -86,6 +87,7 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
         print('load weights')
         model.load_weights(weight_filename)
 
+    os.makedirs(os.path.split(summary_filename)[0], exist_ok=True)
     with open(summary_filename, 'w') as file:
         old = sys.stdout
         sys.stdout = file
