@@ -1,6 +1,6 @@
 import numpy as np
 
-DEFAULT_NOISE = 0.2
+DEFAULT_NOISE = 0.5
 DEFAULT_CATEGORISATION_NOISE = 0.2
 DEFAULT_DISABLE_PIXEL = 1 / 3
 DEFAULT_CONTRAST = 0.5
@@ -15,6 +15,20 @@ def get_uniform_noise_function(f=DEFAULT_NOISE):
         x += noise
         x = np.maximum(x, xmin)
         x = np.minimum(x, xmax)
+        return x, y
+
+    return uniform_noise
+
+
+def get_uniform_output_noise_function(f=DEFAULT_NOISE):
+    def uniform_noise(x, y):  # std is around 0.35
+        ymax = np.max(y)
+        ymin = np.min(y)
+        noise = f * y.std() * (2 * np.random.random(y.shape) - 1)
+        y = y.astype('float64')
+        y += noise
+        y = np.maximum(y, ymin)
+        y = np.minimum(y, ymax)
         return x, y
 
     return uniform_noise
@@ -75,4 +89,5 @@ NOISE_FUNCTIONS = {'uniform': get_uniform_noise_function(),
                    'contrast': get_contrast_noise_function(),
                    'composition': get_composition,
                    'categorization': get_categorization_noise_function(),
+                   'output_uniform': get_uniform_output_noise_function(),
                    None: get_none_noise()}

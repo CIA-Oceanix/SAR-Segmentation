@@ -8,6 +8,7 @@ from keras_radam.training import RAdamOptimizer
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.models import convolution_block, deconvolution_block
 from Rignak_DeepLearning.config import get_config
+from Rignak_DeepLearning.loss import dice_coef_loss
 
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
@@ -61,6 +62,9 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
 
     model = Model(inputs=[inputs], outputs=[conv_layer])
     optimizer = RAdamOptimizer(learning_rate)
+
+    if loss == "DICE":
+        loss = dice_coef_loss
     model.compile(optimizer=optimizer, loss=loss)
 
     model.name = name

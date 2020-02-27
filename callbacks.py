@@ -66,9 +66,6 @@ class HistoryCallback(Callback):
 
         plt.tight_layout()
         plt.savefig(os.path.join(self.root, f'{self.model.name}.png'))
-        np.save(os.path.join(self.root, f'{self.model.name}.npy'), {'x': self.x, 'acc': self.accuracy,
-                                                                    'val_acc': self.val_accuracy, 'losses': self.losses,
-                                                                    'val_losses': self.val_losses})
         plt.close()
 
 
@@ -97,7 +94,7 @@ class AutoencoderExampleCallback(Callback):
 
         plot_autoencoder_example(example[0], example[2], groundtruth=example[1], labels=self.model.callback_titles,
                                  denormalizer=self.denormalizer)
-        plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
+        plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
 
@@ -139,7 +136,7 @@ class ConfusionCallback(Callback):
         confusion_matrix = compute_confusion_matrix(self.model, self.generator, canals=len(self.labels))
         plot_confusion_matrix(confusion_matrix, labels=self.labels)
 
-        plt.savefig(os.path.join(self.root, self.model.name, f'{self.model.name}_{epoch}.png'))
+        plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
 
