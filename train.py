@@ -53,19 +53,21 @@ python train.py saliency open_eyes --NOISE=[contrast] --NORMALIZATION=intensity 
 
 python train.py inceptionV3 background --NOISE=[contrast] --NORMALIZATION=intensity --batch_size=4 --IMAGENET=transfer --NAME=waifu_backgrounded --INPUT_SHAPE="(512,512,3)"
 
-python train.py inceptionV3 TenGeoP-SARwv --NOISE=[categorization] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=TenGeoP-SARwv\InceptionV3_512 --INPUT_SHAPE="(512,512,1)" --batch_size=4 --epochs=25
+python train.py inceptionV3 TenGeoP-SARwv --NORMALIZATION=intensity --IMAGENET=transfer --NAME=TenGeoP-SARwv\InceptionV3_512 --INPUT_SHAPE="(512,512,1)" --batch_size=2 --epochs=25
 python train.py inceptionV3 TenGeoP-SARwv --NOISE=[categorization] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=test --INPUT_SHAPE="(128,128,1)" --batch_size=4 --epochs=25 --training_steps=50
 
-python train.py heatmap "TenGeoP-SARwv_heatmap/Atmospheric Front" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Biological Slicks" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Iceberg" --NOISE=[output_uniform] --LOSS=DICE --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Low Wind Area" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Micro Convective Cells" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Oceanic Front" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Pure Ocean Waves" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Rain Cells" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Sea Ice" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Wind Streaks" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Atmospheric_Front" --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Oceanic_Front" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Biological_Slicks" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Low_Wind_Area" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Micro_Convective_Cells" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Rain_Cells" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Sea_Ice" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Pure_Ocean_Waves" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Wind_Streaks" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
+python train.py heatmap "TenGeoP-SARwv_heatmap/Iceberg" --LOSS=DICE --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=100
+
+python train.py heatmap "TenGeoP-SARwv_heatmap/Iceberg" --LOSS=WBCE --NOISE=[decreasing_contacts] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=100 --training_steps=100 --validation_steps=100
 """
 
 BATCH_SIZE = 16

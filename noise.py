@@ -1,9 +1,15 @@
 import numpy as np
+import scipy
 
-DEFAULT_NOISE = 0.5
+DEFAULT_NOISE = 1.0
 DEFAULT_CATEGORISATION_NOISE = 0.2
 DEFAULT_DISABLE_PIXEL = 1 / 3
 DEFAULT_CONTRAST = 0.5
+
+DEFAULT_DECREASING_SIZE = 12
+
+DEFAULT_FIRST_DECREASING_PERIOD = 20000
+DEFAULT_DECREASING_PERIOD = 2000
 
 
 def get_uniform_noise_function(f=DEFAULT_NOISE):
@@ -70,6 +76,40 @@ def get_categorization_noise_function(f=DEFAULT_CATEGORISATION_NOISE):
     return categorization_noise_function
 
 
+def get_decreasing_contacts(first_period=DEFAULT_FIRST_DECREASING_PERIOD, period=DEFAULT_DECREASING_PERIOD,
+                            kernel_size=DEFAULT_DECREASING_SIZE):
+    def get_kernel():
+        size = function_variables['kernel_radius']
+        x, y = np.meshgrid(np.linspace(-size, size, 2 * size), np.linspace(-size, size, 2 * size))
+        d = np.sqrt(x * x + y * y)
+        kernel = np.maximum(0, 1 - d / size)
+        kernel = (kernel - kernel.min()) / kernel.max()
+        function_variables['kernel'] = kernel
+
+    def decreasing_contacts(x, y):
+        if function_variables['kernel_radius'] <= 1:
+            return x, y
+
+        ymax = y.max()
+        y = y / ymax
+        structure = function_variables['kernel']
+        for i in range(y.shape[0]):
+            y[i] = scipy.ndimage.morphology.grey_dilation(y[i], structure=structure[:, :, None]) - 1
+        y = (y - y.min()) * ymax
+
+        function_variables['batch'] += 1
+        if not function_variables['batch'] % function_variables['period']:
+            function_variables['kernel_radius'] -= 1
+            function_variables['period'] = period
+            print('\nDecreasing kernel size to', function_variables['kernel_radius'])
+            get_kernel()
+        return x, y
+
+    function_variables = {'batch': 0, 'kernel_radius': kernel_size, 'period': first_period}
+    get_kernel()
+    return decreasing_contacts
+
+
 def get_composition(functions):
     def apply_composition(x, y):
         new_x = x
@@ -89,5 +129,6 @@ NOISE_FUNCTIONS = {'uniform': get_uniform_noise_function(),
                    'contrast': get_contrast_noise_function(),
                    'composition': get_composition,
                    'categorization': get_categorization_noise_function(),
+                   'decreasing_contacts': get_decreasing_contacts(),
                    'output_uniform': get_uniform_output_noise_function(),
                    None: get_none_noise()}

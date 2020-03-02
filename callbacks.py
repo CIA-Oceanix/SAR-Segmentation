@@ -112,9 +112,17 @@ class ClassificationExampleCallback(Callback):
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs=None):
-        example = next(self.generator)
-        plot_categorizer_example(example, self.model.predict(example[0]), self.model.labels,
-                                 denormalizer=self.denormalizer)
+        example = [[], [], []]
+        while len(example[0]) < 8:
+            next_ = next(self.generator)
+            example[0] += list(next_[0])
+            example[1] += list(next_[1])
+            example[2] += list(self.model.predict(next_[0]))
+        example[0] = np.array(example[0])
+        example[1] = np.array(example[1])
+        example[2] = np.array(example[2])
+
+        plot_categorizer_example(example[:2], example[2], self.model.labels, denormalizer=self.denormalizer)
         plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()

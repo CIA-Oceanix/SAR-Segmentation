@@ -7,12 +7,21 @@ from keras.models import Model, load_model
 from keras import backend as K
 
 
+def weighted_binary_crossentropy(y_true, y_pred, smooth=0.01):
+    # y_true = K.expand_dims(K.flatten(y_true))
+    # y_pred = K.expand_dims(K.flatten(y_pred))
+    size = K.sum(y_pred) + K.sum(1 - y_pred)
+    weights = 1 - (K.sum(y_true) / size)
+    loss = - weights * y_true * K.log(y_pred + smooth) - \
+           (1 - weights + smooth) * (1 - y_true) * K.log(1 - y_pred + smooth)
+    return loss
+
+
 def dice_coef_loss(y_true, y_pred):
-    def dice_coef(y_true, y_pred, smooth=.1):
-        y_true_f = K.flatten(y_true)
-        y_pred_f = K.flatten(y_pred)
-        intersection = K.sum(y_true_f * y_pred_f)
-        return (2. * intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) + smooth)
+    def dice_coef(y_true, y_pred, smooth=.01):
+        numerator = 2 * K.control_flow_ops.math_ops.reduce_sum(y_true * y_pred, axis=-1)
+        denominator = K.control_flow_ops.math_ops.reduce_sum(y_true + y_pred, axis=-1)
+        return (numerator) / (denominator + smooth)
 
     return 1 - dice_coef(y_true, y_pred)
 

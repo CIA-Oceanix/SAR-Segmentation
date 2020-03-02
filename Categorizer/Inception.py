@@ -46,7 +46,7 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
         for layer in model.layers[:-1]:
             layer.trainable = False
 
-    optimizer = RAdamOptimizer(1e-3)
+    optimizer = RAdamOptimizer(1e-4)
     if class_weight is not None:
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     else:
