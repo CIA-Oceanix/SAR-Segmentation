@@ -3,6 +3,7 @@ import os
 
 from keras.models import Model
 from keras.layers import Input, Conv2D
+from keras.optimizers import adam
 from keras_radam.training import RAdamOptimizer
 
 from Rignak_Misc.path import get_local_file
@@ -54,14 +55,13 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     # decoder
     for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
         block = deconvolution_block(block, previous_conv, neurons, activation=activation)
-        print(block.shape, output_shape)
         if block.shape[1] == output_shape[0] and block.shape[2] == output_shape[1]:
             conv_layer = Conv2D(output_canals, (1, 1), activation=last_activation)(block)
-            print('stopping when', block.shape)
             break
 
     model = Model(inputs=[inputs], outputs=[conv_layer])
     optimizer = RAdamOptimizer(learning_rate)
+    # optimizer = adam(lr=learning_rate)
 
     if loss == "DICE":
         loss = dice_coef_loss

@@ -16,7 +16,6 @@ from Rignak_DeepLearning.Categorizer.confusion_matrix import compute_confusion_m
 HISTORY_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'history'))
 EXAMPLE_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'example'))
 CONFUSION_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'confusion'))
-MODEL_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'models'))
 
 
 class HistoryCallback(Callback):
@@ -33,7 +32,7 @@ class HistoryCallback(Callback):
         self.root = root
 
     def on_train_begin(self, logs=None):
-        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
+        filename = os.path.join(self.root, f'{self.model.name}.png')
         os.makedirs(os.path.split(filename)[0], exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
@@ -138,7 +137,6 @@ class ConfusionCallback(Callback):
     def on_train_begin(self, logs=None):
         filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
         os.makedirs(os.path.split(filename)[0], exist_ok=True)
-        self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
         confusion_matrix = compute_confusion_matrix(self.model, self.generator, canals=len(self.labels))
@@ -150,16 +148,15 @@ class ConfusionCallback(Callback):
 
 
 class SaveAttributes(Callback):
-    def __init__(self, generator, config, labels=None, root=MODEL_CALLBACK_ROOT):
+    def __init__(self, generator, config, labels=None):
         super().__init__()
         self.generator = generator
-        self.root = root
         self.config = config
         self.saved_logs = []
         self.labels = labels
 
     def on_train_begin(self, logs=None):
-        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
+        filename = self.model.weight_filename + '.json'
         os.makedirs(os.path.split(filename)[0], exist_ok=True)
 
     def on_epoch_end(self, epoch, logs=None):
@@ -175,5 +172,5 @@ class SaveAttributes(Callback):
         dict_to_save['input'] = self.input_
         dict_to_save['output'] = self.output
         dict_to_save['groundtruth'] = self.groundtruth
-        with open(os.path.join(self.root, f'{self.model.name}.more.json'), 'w') as file:
+        with open(self.model.weight_filename + '.json', 'w') as file:
             json.dump(dict_to_save, file, sort_keys=True, indent=4)

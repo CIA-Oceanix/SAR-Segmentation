@@ -15,7 +15,7 @@ from keras.callbacks import ModelCheckpoint
 
 from Rignak_DeepLearning.data import get_dataset_roots
 from Rignak_DeepLearning.normalization import NORMALIZATION_FUNCTIONS
-from Rignak_DeepLearning.noise import NOISE_FUNCTIONS
+from Rignak_DeepLearning.noise import get_composition
 from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCallback, ConfusionCallback, \
     ClassificationExampleCallback, SaveAttributes
 from Rignak_DeepLearning.Autoencoders.flat import import_model as import_flat_model
@@ -29,46 +29,13 @@ from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator
 from Rignak_DeepLearning.BiOutput.callbacks import ExampleCallback as BimodeExampleCallback
 from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHistoryCallback
 from Rignak_DeepLearning.Categorization2Segmentation.heatmap_model import import_model as import_heatmap_model
-from Rignak_DeepLearning.Categorization2Segmentation.generator import heatmap_generator
+from Rignak_DeepLearning.Categorization2Segmentation.generator import heatmap_generator, \
+    get_heatmap_generator_with_dummy_data
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
     thumbnail_generator as thumb_generator, normalize_generator, augment_generator, regressor_generator, \
     rotsym_augmentor
 from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
 from Rignak_DeepLearning.config import get_config
-
-"""
->>> python train.py autoencoder fav-rignak 
->>> python train.py saliency open_eyes
->>> python train.py saliency eye_color
->>> python train.py categorizer waifu
->>> python train.py mnist mnist batch_size=256
->>> python train.py style_transfer colorization 
->>> python train.py bimode waifu 
->>> python train.py inceptionV3 chen --NORMALIZATION=fourier --NAME=TenGeoP_fourier --INPUT_SHAPE="(256,256,3) --epochs=15"
->>> python train.py inceptionV3 chen --NORMALIZATION=fourier_only --NAME=TenGeoP_fourier_only --INPUT_SHAPE="(256,256,1) --epochs=15"
-
-python train.py inceptionV3 waifu2latent --NOISE=[contrast,uniform] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=waifu2latent_512 --INPUT_SHAPE="(512,512,3)" --batch_size=4
-python train.py inceptionV3 waifu_faces --NOISE=[contrast,uniform] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=waifu_faces2latent_256 --INPUT_SHAPE="(256,256,3)" --batch_size=4
-python train.py saliency open_eyes --NOISE=[contrast] --NORMALIZATION=intensity --NAME=open_eyes_segmentation_256 --INPUT_SHAPE="(256,256,3)" --batch_size=16
-
-python train.py inceptionV3 background --NOISE=[contrast] --NORMALIZATION=intensity --batch_size=4 --IMAGENET=transfer --NAME=waifu_backgrounded --INPUT_SHAPE="(512,512,3)"
-
-python train.py inceptionV3 TenGeoP-SARwv --NORMALIZATION=intensity --IMAGENET=transfer --NAME=TenGeoP-SARwv\InceptionV3_512 --INPUT_SHAPE="(512,512,1)" --batch_size=2 --epochs=25
-python train.py inceptionV3 TenGeoP-SARwv --NOISE=[categorization] --NORMALIZATION=intensity --IMAGENET=transfer --NAME=test --INPUT_SHAPE="(128,128,1)" --batch_size=4 --epochs=25 --training_steps=50
-
-python train.py heatmap "TenGeoP-SARwv_heatmap/Atmospheric_Front" --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Oceanic_Front" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Biological_Slicks" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Low_Wind_Area" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Micro_Convective_Cells" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Rain_Cells" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Sea_Ice" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Pure_Ocean_Waves" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Wind_Streaks" --NOISE=[output_uniform] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=10
-python train.py heatmap "TenGeoP-SARwv_heatmap/Iceberg" --LOSS=DICE --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=100
-
-python train.py heatmap "TenGeoP-SARwv_heatmap/Iceberg" --LOSS=WBCE --NOISE=[decreasing_contacts] --NORMALIZATION=intensity --INPUT_SHAPE="(512,512,1)" --OUTPUT_SHAPE="(32, 32, 1)" --batch_size=4 --INPUT_LABEL=SAR --OUTPUT_LABEL=HEAT --epochs=100 --training_steps=100 --validation_steps=100
-"""
 
 BATCH_SIZE = 16
 TRAINING_STEPS = 2000
@@ -122,6 +89,15 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
         output_shape = config[task].get('OUTPUT_SHAPE', input_shape)
         input_label = config[task].get('INPUT_LABEL', 'input')
         output_label = config[task].get('OUTPUT_LABEL', 'output')
+
+        dummy_probability_increase = config[task].get('DUMMY_PROBABILITY_INCREASE')
+        dummy_initial_batch = config[task].get('DUMMY_INITIAL_BATCH')
+        dummy_maximum_probability = config[task].get('DUMMY_MAXIMUM_PROBABILITY')
+
+        heatmap_generator = get_heatmap_generator_with_dummy_data(dummy_probability_increase=dummy_probability_increase,
+                                                                  dummy_initial_batch=dummy_initial_batch,
+                                                                  dummy_maximum_probability=dummy_maximum_probability)
+
         train_generator = heatmap_generator(train_folder, input_shape=input_shape, output_shape=output_shape,
                                             batch_size=batch_size, input_label=input_label, output_label=output_label)
         val_generator = heatmap_generator(val_folder, input_shape=input_shape, output_shape=output_shape,
@@ -129,9 +105,9 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
         callback_generator = heatmap_generator(val_folder, input_shape=input_shape, output_shape=output_shape,
                                                batch_size=batch_size, input_label=input_label,
                                                output_label=output_label)
+
         return train_generator, val_generator, callback_generator, train_folder
 
-    print('CREATING THE GENERATORS')
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
     scaling = config[task].get('SCALING', default_scaling)
     train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
@@ -164,16 +140,6 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_bimode_augmentation():
-        # new_train_generator = bimode_normalize(
-        #     bimode_augment(train_generator, noise_function=noise_function, apply_on_output=True),
-        #     normalizer, apply_on_output=True)
-        # new_val_generator = bimode_normalize(
-        #     bimode_augment(val_generator, noise_function=noise_function, apply_on_output=True), normalizer,
-        #     apply_on_output=True)
-        # new_callback_generator = bimode_normalize(
-        #     bimode_augment(callback_generator, noise_function=noise_function, apply_on_output=True),
-        #     normalizer, apply_on_output=True)
-
         new_train_generator = bimode_normalize(train_generator, normalizer, apply_on_output=True)
         new_val_generator = bimode_normalize(val_generator, normalizer, apply_on_output=True)
         new_callback_generator = bimode_normalize(callback_generator, normalizer, apply_on_output=True)
@@ -185,7 +151,6 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
             augment_generator(train_generator, noise_function=noise_function, apply_on_output=False),
             normalizer, apply_on_output=False)
 
-        # new_val_generator = normalize_generator(val_generator, normalizer, apply_on_output=False)
         new_val_generator = normalize_generator(
             augment_generator(val_generator, noise_function=noise_function, apply_on_output=False),
             normalizer, apply_on_output=False)
@@ -194,19 +159,14 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
             augment_generator(callback_generator, noise_function=noise_function, apply_on_output=False),
             normalizer, apply_on_output=False)
 
-        # new_train_generator = rotsym_augmentor(new_train_generator)
-        # new_val_generator = rotsym_augmentor(new_val_generator)
-        # new_callback_generator = rotsym_augmentor(new_callback_generator)
-
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_regressor_augmentation():
         return train_generator, val_generator, callback_generator
 
-    print('ADD DATA-AUGMENTATION')
-
     normalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'intensity')]()[0]
-    noise_function = NOISE_FUNCTIONS['composition'](config[task].get('NOISE', [None]))
+    noise_function = get_composition(config[task].get('NOISE', [None]),
+                                     config[task].get('NOISE_PARAMETERS', (())))
 
     functions = {"style_transfer": get_im2im_data_augmentation,
                  "saliency": get_im2im_data_augmentation,
@@ -298,15 +258,14 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
 
 def get_callbacks(config, task, model, callback_generator):
     def get_im2im_callbacks():
-        callbacks = [SaveAttributes(callback_generator, config[task], root=os.path.split(model.weight_filename)[0]),
+        callbacks = [SaveAttributes(callback_generator, config[task]),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
                      AutoencoderExampleCallback(callback_generator, denormalizer=denormalizer)]
         return callbacks
 
     def get_bimode_callbacks():
-        callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels,
-                                    root=os.path.split(model.weight_filename)[0]),
+        callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
                      BimodeHistoryCallback(),
                      BimodeExampleCallback(callback_generator, denormalizer=denormalizer),
@@ -314,8 +273,7 @@ def get_callbacks(config, task, model, callback_generator):
         return callbacks
 
     def get_categorizer_callbacks():
-        callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels,
-                                    root=os.path.split(model.weight_filename)[0]),
+        callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
                      ConfusionCallback(callback_generator, model.labels),
@@ -323,7 +281,7 @@ def get_callbacks(config, task, model, callback_generator):
         return callbacks
 
     def get_regressor_callback():
-        callbacks = [SaveAttributes(callback_generator, config[task], root=os.path.split(model.weight_filename)[0]),
+        callbacks = [SaveAttributes(callback_generator, config[task]),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(),
                      GanRegressorExampleCallback(callback_generator,
@@ -334,11 +292,8 @@ def get_callbacks(config, task, model, callback_generator):
                                                  )]
         return callbacks
 
-    print(config[task])
     denormalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'intensity')]()[1]
-    print(config[task].get('NORMALIZATION', 'intensity'))
 
-    print('PUTING LANDMARKS')
     functions = {"saliency": get_im2im_callbacks,
                  "autoencoder": get_im2im_callbacks,
                  "heatmap": get_im2im_callbacks,
@@ -360,6 +315,7 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
     config = get_config()
     for key, value in kwargs.items():
         config[task][key] = value
+    config[task]['DATASET'] = dataset
     task = config[task]['TASK']
 
     train_folder, val_folder = get_dataset_roots(task, dataset=dataset)

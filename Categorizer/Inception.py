@@ -17,11 +17,12 @@ IMAGENET = False
 DEFAULT_LOSS = 'categorical_crossentropy'
 DEFAULT_METRICS = ['accuracy']
 LAST_ACTIVATION = 'softmax'
+LEARNING_RATE = 10 ** -4
 
 
 def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
                     imagenet=IMAGENET, loss=DEFAULT_LOSS, metrics=DEFAULT_METRICS, last_activation=LAST_ACTIVATION,
-                    class_weight=None):
+                    class_weight=None, learning_rate=LEARNING_RATE):
     if imagenet:
         print('Will load imagenet weights')
         weights = "imagenet"
@@ -46,16 +47,11 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
         for layer in model.layers[:-1]:
             layer.trainable = False
 
-    optimizer = RAdamOptimizer(1e-4)
+    optimizer = RAdamOptimizer(learning_rate)
     if class_weight is not None:
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     else:
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-
-    if weights is None:
-        model.name = f"{name}_False"
-    else:
-        model.name = f"{name}_{weights}"
 
     model.weight_filename = os.path.join(weight_root, f"{model.name}.h5")
     model.summary_filename = os.path.join(summary_root, f"{model.name}.txt")

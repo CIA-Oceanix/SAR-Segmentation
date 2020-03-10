@@ -39,7 +39,10 @@ def read(filename, input_shape=None):
         if len(im.shape) == 2:
             im = np.expand_dims(im, axis=-1)
         if im.shape[-1] == 1 and input_shape[-1] == 3:
-            im = np.stack((im[:, :, 0],) * 3, axis=-1)
+            im = np.stack((im[:, :, 0],) * input_shape[-1], axis=-1)
+        elif im.shape[-1] == 3 and input_shape[-1] == 1:
+            im = np.mean(im, axis=-1)
+            im = np.expand_dims(im, axis=-1)
     except Exception as e:
         print(f"Error {e} when reading {filename}, will return empty image")
         return np.zeros(input_shape)
