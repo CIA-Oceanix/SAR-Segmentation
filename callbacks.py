@@ -21,7 +21,7 @@ CONFUSION_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'con
 class HistoryCallback(Callback):
     """Callback generating a fitness plot in a file after each epoch"""
 
-    def __init__(self, root=HISTORY_CALLBACK_ROOT):
+    def __init__(self, batch_size, training_steps, root=HISTORY_CALLBACK_ROOT):
         super().__init__()
         self.x = []
         self.losses = []
@@ -30,16 +30,18 @@ class HistoryCallback(Callback):
         self.val_accuracy = [None]
         self.logs = []
         self.root = root
+        self.batch_size = batch_size
+        self.training_steps = training_steps
 
     def on_train_begin(self, logs=None):
         filename = os.path.join(self.root, f'{self.model.name}.png')
         os.makedirs(os.path.split(filename)[0], exist_ok=True)
-        self.on_epoch_end(0, logs=logs)
+        self.on_epoch_end(-1, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
         plt.ioff()
         self.logs.append(logs)
-        self.x.append(epoch)
+        self.x.append((epoch + 1) * self.batch_size * self.training_steps / 1000)
         self.losses.append(logs.get('loss'))
         self.val_losses.append(logs.get('val_loss'))
 
@@ -50,7 +52,7 @@ class HistoryCallback(Callback):
             plt.subplot(1, 2, 2)
             plt.plot(self.x, self.accuracy, label="Training")
             plt.plot(self.x, self.val_accuracy, label="Validation")
-            plt.xlabel('Epoch')
+            plt.xlabel('kimgs')
             plt.ylabel('Accuracy')
             plt.ylim(0, 1)
             plt.legend()
@@ -58,7 +60,7 @@ class HistoryCallback(Callback):
 
         plt.plot(self.x, self.losses, label="Training")
         plt.plot(self.x, self.val_losses, label="Validation")
-        plt.xlabel('Epoch')
+        plt.xlabel('kimgs')
         plt.ylabel('Loss')
         plt.yscale('log')
         plt.legend()
@@ -148,12 +150,13 @@ class ConfusionCallback(Callback):
 
 
 class SaveAttributes(Callback):
-    def __init__(self, generator, config, labels=None):
+    def __init__(self, generator, config, labels=None, max_examples=4):
         super().__init__()
         self.generator = generator
         self.config = config
         self.saved_logs = []
         self.labels = labels
+        self.max_examples = max_examples
 
     def on_train_begin(self, logs=None):
         filename = self.model.weight_filename + '.json'
@@ -161,14 +164,17 @@ class SaveAttributes(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         self.saved_logs.append(logs.copy())
-        example = next(self.generator)
+        input_, groundtruth = next(self.generator)
+        if len(input_) > self.max_examples:
+            input_ = input_[:self.max_examples]
+            groundtruth = groundtruth[:self.max_examples]
 
         val_losses = [log['val_loss'] for log in self.saved_logs]
         dict_to_save = {"_logs": self.saved_logs, "_labels": self.labels, "_config": self.config}
         if np.argmax(val_losses) == len(val_losses) - 1:
-            self.input_ = example[0].tolist()
-            self.groundtruth = example[1].tolist()
-            self.output = self.model.predict(example[0]).tolist()
+            self.input_ = input_.tolist()
+            self.groundtruth = groundtruth.tolist()
+            self.output = self.model.predict(input_).tolist()
         dict_to_save['input'] = self.input_
         dict_to_save['output'] = self.output
         dict_to_save['groundtruth'] = self.groundtruth

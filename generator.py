@@ -9,7 +9,7 @@ from Rignak_DeepLearning.data import read
 BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
 ZOOM = 0.0
-ROTATION = 0
+ROTATION = 0.0
 
 
 def autoencoder_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
@@ -90,12 +90,12 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
         output_shape = batch_output.shape[1:3]
 
         angles = (np.random.random(size=batch_input.shape[0]) - 0.5) * rotation
-        zooms = 1 + (np.random.random(size=batch_input.shape[0]) - 0.5) * zoom_factor * 2
+        zooms = 1 + (np.random.random(size=batch_input.shape[0]) - 0.25) * zoom_factor * 2
         h_flips = np.random.randint(0, 2, size=batch_input.shape[0])
 
         for i, (input_, output, angle, zoom, h_flip) in \
                 enumerate(zip(batch_input, batch_output, angles, zooms, h_flips)):
-            if h_flip:
+            if h_flip and False:
                 input_ = input_[:, ::-1]
                 if apply_on_output:
                     output = output[:, ::-1]

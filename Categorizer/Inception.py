@@ -53,8 +53,9 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
     else:
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
-    model.weight_filename = os.path.join(weight_root, f"{model.name}.h5")
-    model.summary_filename = os.path.join(summary_root, f"{model.name}.txt")
+    model.name = name
+    model.weight_filename = os.path.join(weight_root, f"{name}.h5")
+    model.summary_filename = os.path.join(summary_root, f"{name}.txt")
     model.class_weight = class_weight
 
     if load:

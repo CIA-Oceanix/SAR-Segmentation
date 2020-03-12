@@ -260,14 +260,14 @@ def get_callbacks(config, task, model, callback_generator):
     def get_im2im_callbacks():
         callbacks = [SaveAttributes(callback_generator, config[task]),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
-                     HistoryCallback(),
+                     HistoryCallback(batch_size, training_steps),
                      AutoencoderExampleCallback(callback_generator, denormalizer=denormalizer)]
         return callbacks
 
     def get_bimode_callbacks():
         callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
-                     BimodeHistoryCallback(),
+                     BimodeHistoryCallback(batch_size, training_steps),
                      BimodeExampleCallback(callback_generator, denormalizer=denormalizer),
                      ConfusionCallback(callback_generator, model.labels)]
         return callbacks
@@ -275,7 +275,7 @@ def get_callbacks(config, task, model, callback_generator):
     def get_categorizer_callbacks():
         callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
-                     HistoryCallback(),
+                     HistoryCallback(batch_size, training_steps),
                      ConfusionCallback(callback_generator, model.labels),
                      ClassificationExampleCallback(callback_generator, denormalizer=denormalizer)]
         return callbacks
@@ -283,7 +283,7 @@ def get_callbacks(config, task, model, callback_generator):
     def get_regressor_callback():
         callbacks = [SaveAttributes(callback_generator, config[task]),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
-                     HistoryCallback(),
+                     HistoryCallback(batch_size, training_steps),
                      GanRegressorExampleCallback(callback_generator,
                                                  gan_filename=config[task]["GAN_FILENAME"],
                                                  layer_number=config[task].get('LAYER_NUMBER', 1),
@@ -293,6 +293,8 @@ def get_callbacks(config, task, model, callback_generator):
         return callbacks
 
     denormalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'intensity')]()[1]
+    batch_size = config[task].get('BATCH_SIZE')
+    training_steps = config[task].get('TRAINING_STEPS')
 
     functions = {"saliency": get_im2im_callbacks,
                  "autoencoder": get_im2im_callbacks,
@@ -316,6 +318,10 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
     for key, value in kwargs.items():
         config[task][key] = value
     config[task]['DATASET'] = dataset
+    config[task]['TRAINING_STEPS'] = training_steps
+    config[task]['VALIDATION_STEPS'] = validation_steps
+    config[task]['EPOCHS'] = epochs
+    config[task]['BATCH_SIZE'] = batch_size
     task = config[task]['TASK']
 
     train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
@@ -323,6 +329,7 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
     train_generator, val_generator, callback_generator = get_data_augmentation(config, task, train_generator,
                                                                                val_generator, callback_generator)
     name = config[task].get('NAME', f'{dataset}_{task}')
+    print('train.py, l326: NAME is', name)
     model = get_models(config, task, name, train_folder, load=initial_epoch != 0)
     callbacks = get_callbacks(config, task, model, callback_generator)
     print('FIRIN MAH LASER')

@@ -1,9 +1,9 @@
 import os
 import numpy as np
 from PIL import Image
-import cv2
 from skimage.transform import resize
 from tqdm import tqdm
+import functools
 
 import PIL.Image
 
@@ -30,6 +30,7 @@ def data_on_folder(folder, size, canals=CANALS):
     return array, filenames
 
 
+@functools.lru_cache(maxsize=5000)
 def read(filename, input_shape=None):
     with PIL.Image.open(filename) as im:
         im = np.array(im)

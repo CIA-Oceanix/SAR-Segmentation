@@ -5,6 +5,8 @@ from keras.models import Model
 from keras.optimizers import SGD
 from keras.regularizers import l2
 from keras.layers import Input, Dense, Dropout, Flatten
+from keras_radam.training import RAdamOptimizer
+
 
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.models import convolution_block
@@ -15,8 +17,7 @@ SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'
 
 LOAD = False
 
-LEARNING_RATE = 10 ** -4
-WEIGHT_DECAY = 10 ** -5
+LEARNING_RATE = 10 ** -2
 
 CONFIG_KEY = 'categorizer'
 CONFIG = get_config()[CONFIG_KEY]
@@ -24,7 +25,6 @@ DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 
 def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
-                 weight_decay=WEIGHT_DECAY,
                  learning_rate=LEARNING_RATE, name=DEFAULT_NAME, config=CONFIG,
                  class_weight=None):
     weight_filename = os.path.join(weight_root, f"{name}.h5")
@@ -40,20 +40,22 @@ def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_RO
     block = None
     for neurons in conv_layers:
         if block is None:
-            block, _ = convolution_block(input_layer, neurons, activation=activation)
+            block, _ = convolution_block(input_layer, neurons, activation=activation,
+                                         batch_normalization=False, n_layers=1)
         else:
-            block, _ = convolution_block(block, neurons, activation=activation)
+            block, _ = convolution_block(block, neurons, activation=activation, batch_normalization=False, n_layers=1)
 
     block = Flatten()(block)
     for neurons in dense_layers:
-        block = Dense(neurons, kernel_regularizer=l2(weight_decay), activation=activation)(block)
-        block = Dropout(0.5)(block)
+        block = Dense(neurons, activation=activation)(block)
+        # block = Dropout(0.5)(block)
     block = Dense(output_canals, activation=last_activation)(block)
 
     model = Model(inputs=input_layer, outputs=block)
 
-    sgd = SGD(lr=learning_rate, momentum=0.5, nesterov=True)
-    model.compile(optimizer=sgd, loss='categorical_crossentropy', metrics=['accuracy'])
+    print('learning rate', learning_rate)
+    optimizer = RAdamOptimizer(learning_rate)
+    model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
     model.name = name
     model.weight_filename = weight_filename
