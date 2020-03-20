@@ -30,7 +30,7 @@ def data_on_folder(folder, size, canals=CANALS):
     return array, filenames
 
 
-@functools.lru_cache(maxsize=5000)
+# @functools.lru_cache(maxsize=2000)
 def read(filename, input_shape=None):
     with PIL.Image.open(filename) as im:
         im = np.array(im)
@@ -44,7 +44,10 @@ def read(filename, input_shape=None):
         elif im.shape[-1] == 3 and input_shape[-1] == 1:
             im = np.mean(im, axis=-1)
             im = np.expand_dims(im, axis=-1)
+        if im.max() > 1:
+            im = im / 255
     except Exception as e:
+        print('exists:', os.path.exists(filename))
         print(f"Error {e} when reading {filename}, will return empty image")
         return np.zeros(input_shape)
     return im

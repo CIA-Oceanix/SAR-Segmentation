@@ -35,15 +35,17 @@ def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_RO
     input_shape = config.get('INPUT_SHAPE', (128, 128, 3))
     activation = config.get('ACTIVATION', 'relu')
     last_activation = config.get('LAST_ACTIVATION', 'softmax')
+    block_depth = config.get('BLOCK_DEPTH', 1)
 
     input_layer = Input(input_shape)
     block = None
     for neurons in conv_layers:
         if block is None:
             block, _ = convolution_block(input_layer, neurons, activation=activation,
-                                         batch_normalization=False, n_layers=1)
+                                         batch_normalization=False, block_depth=block_depth)
         else:
-            block, _ = convolution_block(block, neurons, activation=activation, batch_normalization=False, n_layers=1)
+            block, _ = convolution_block(block, neurons, activation=activation, batch_normalization=False,
+                                         block_depth=block_depth)
 
     block = Flatten()(block)
     for neurons in dense_layers:

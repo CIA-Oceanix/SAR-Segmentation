@@ -14,23 +14,6 @@ DUMMY_INITIAL_BATCH = 20000
 DUMMY_PROBABILITY_INCREASE = 0.05 / 2000  # incease of 5% each 2000 batchs
 DUMMY_MAXIMUM_PROBABILITY = 0.5
 
-
-def heatmap_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE,
-                      input_label=INPUT_LABEL, output_label=OUTPUT_LABEL):
-    input_filenames = np.array(sorted(glob.glob(os.path.join(root, input_label, '*.png'))))
-    output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.png'))))
-    assert len(input_filenames) == len(output_filenames)
-    while True:
-        batch_index = np.random.randint(0, len(input_filenames), size=batch_size)
-
-        batch_input_path = input_filenames[batch_index]
-        batch_input = np.array([read(path, input_shape) for path in batch_input_path])
-
-        batch_output_path = output_filenames[batch_index]
-        batch_output = np.array([read(path, output_shape) for path in batch_output_path])
-        yield batch_input, batch_output
-
-
 def get_heatmap_generator_with_dummy_data(dummy_probability_increase=DUMMY_PROBABILITY_INCREASE,
                                           dummy_initial_batch=DUMMY_INITIAL_BATCH,
                                           dummy_maximum_probability=DUMMY_MAXIMUM_PROBABILITY):

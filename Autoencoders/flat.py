@@ -14,7 +14,7 @@ WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
 LOAD = False
 
-LEARNING_RATE = 10 ** -4
+LEARNING_RATE = 10 ** -2
 
 CONFIG_KEY = 'saliency'
 CONFIG = get_config()[CONFIG_KEY]
@@ -35,6 +35,7 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     activation = config.get('ACTIVATION', 'relu')
     last_activation = config.get('ACTIVATION', 'sigmoid')
     output_canals = config.get('OUTPUT_CANALS', input_shape[-1])
+    block_depth = config.get('BLOCK_DEPTH', 3)
 
     if 'saliency' in name:
         loss = 'binary_crossentropy'
@@ -59,15 +60,15 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
         for neurons in conv_layers:
             if block is None:
                 block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=False,
-                                                batch_normalization=True)
+                                                batch_normalization=True, block_depth=block_depth)
             else:
                 block, conv = convolution_block(block, neurons, activation=activation, maxpool=False,
-                                                batch_normalization=True)
+                                                batch_normalization=True, block_depth=block_depth)
             convs.append(conv)
 
         # central
         block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False,
-                                        batch_normalization=True)
+                                        batch_normalization=True, block_depth=block_depth)
 
         # decoder
         for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):

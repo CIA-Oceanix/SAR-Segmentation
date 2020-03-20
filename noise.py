@@ -112,7 +112,7 @@ def get_decreasing_contacts(args):
             return x, y
 
         ymax = y.max()
-        y = y / ymax
+        y = y / ymax if ymax else y
         structure = function_variables['kernel']
         for i in range(y.shape[0]):
             y[i] = scipy.ndimage.morphology.grey_dilation(y[i], structure=structure[:, :, None]) - 1
@@ -128,6 +128,16 @@ def get_decreasing_contacts(args):
 
     get_kernel()
     return decreasing_contacts
+
+
+def get_random_inverse_function(args):
+    def random_inverse_function(x, y):
+        inverse = np.random.randint(0, 2, size=x.shape[0]).reshape((x.shape[0], 1, 1, 1))
+        new_x = np.choose(inverse, [x, 1 - x])
+        new_y = np.choose(inverse, [y, 1 - y])
+        return new_x, new_y
+
+    return random_inverse_function
 
 
 def get_composition(function_names, noise_parameters):
@@ -153,5 +163,6 @@ NOISE_FUNCTIONS = {'uniform': get_uniform_noise_function,
                    'categorization': get_categorization_noise_function,
                    'decreasing_contacts': get_decreasing_contacts,
                    'output_uniform': get_uniform_output_noise_function,
+                   "inverse": get_random_inverse_function,
                    None: get_none_noise
                    }

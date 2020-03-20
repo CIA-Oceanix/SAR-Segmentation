@@ -4,6 +4,7 @@ import os
 from keras.optimizers import Adam
 from keras.models import Model
 from keras.layers import Input, Conv2D
+from keras_radam.training import RAdamOptimizer
 
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.models import convolution_block, deconvolution_block
@@ -13,7 +14,7 @@ from Rignak_DeepLearning.loss import dice_coef_loss
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
 LOAD = False
-LEARNING_RATE = 10 ** -4
+LEARNING_RATE = 10 ** -2
 
 CONFIG_KEY = 'autoencoder'
 CONFIG = get_config()[CONFIG_KEY]
@@ -36,26 +37,24 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     activation = config.get('ACTIVATION', 'relu')
     last_activation = config.get('ACTIVATION', 'sigmoid')
     output_canals = config.get('OUTPUT_CANALS', input_shape[-1])
+    block_depth = config.get('BLOCK_DEPTH', 3)
 
-    if output_canals == 1:
-        loss = dice_coef_loss
-    else:
-        loss = 'mse'
+    loss = config.get('LOSS', 'mse')
 
     inputs = Input(input_shape)
     # encoder
     for neurons in conv_layers:
         if block is None:
             block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=True,
-                                            batch_normalization=batch_normalization)
+                                            batch_normalization=batch_normalization, block_depth=block_depth)
         else:
             block, conv = convolution_block(block, neurons, activation=activation, maxpool=True,
-                                            batch_normalization=batch_normalization)
+                                            batch_normalization=batch_normalization, block_depth=block_depth)
         convs.append(conv)
 
     # central
     block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False,
-                                    batch_normalization=batch_normalization)
+                                    batch_normalization=batch_normalization, block_depth=block_depth)
 
     # decoder
     for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
@@ -65,7 +64,8 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     conv_layer = Conv2D(output_canals, (1, 1), activation=last_activation)(block)
 
     model = Model(inputs=[inputs], outputs=[conv_layer])
-    model.compile(optimizer=Adam(lr=learning_rate), loss=loss)
+    optimizer = RAdamOptimizer(learning_rate)
+    model.compile(optimizer=optimizer, loss=loss)
 
     model.name = name
     model.weight_filename = weight_filename

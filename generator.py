@@ -3,6 +3,7 @@ import cv2
 import os
 from skimage.transform import resize
 import glob
+import random
 
 from Rignak_DeepLearning.data import read
 

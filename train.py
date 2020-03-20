@@ -29,8 +29,7 @@ from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator
 from Rignak_DeepLearning.BiOutput.callbacks import ExampleCallback as BimodeExampleCallback
 from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHistoryCallback
 from Rignak_DeepLearning.Categorization2Segmentation.heatmap_model import import_model as import_heatmap_model
-from Rignak_DeepLearning.Categorization2Segmentation.generator import heatmap_generator, \
-    get_heatmap_generator_with_dummy_data
+from Rignak_DeepLearning.Categorization2Segmentation.generator import get_heatmap_generator_with_dummy_data
 from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
     thumbnail_generator as thumb_generator, normalize_generator, augment_generator, regressor_generator, \
     rotsym_augmentor
@@ -164,7 +163,7 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
     def get_regressor_augmentation():
         return train_generator, val_generator, callback_generator
 
-    normalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'intensity')]()[0]
+    normalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'none')]()[0]
     noise_function = get_composition(config[task].get('NOISE', [None]),
                                      config[task].get('NOISE_PARAMETERS', (())))
 
