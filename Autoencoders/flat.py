@@ -14,7 +14,7 @@ WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
 LOAD = False
 
-LEARNING_RATE = 10 ** -2
+LEARNING_RATE = 10 ** -4
 
 CONFIG_KEY = 'saliency'
 CONFIG = get_config()[CONFIG_KEY]
@@ -36,13 +36,10 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     last_activation = config.get('ACTIVATION', 'sigmoid')
     output_canals = config.get('OUTPUT_CANALS', input_shape[-1])
     block_depth = config.get('BLOCK_DEPTH', 3)
+    loss = config.get('LOSS', 'mse')
 
-    if 'saliency' in name:
-        loss = 'binary_crossentropy'
-    elif output_canals == 1:
+    if loss == 'DICE':
         loss = dice_coef_loss
-    else:
-        loss = 'mse'
 
     pretrained_model_filename = os.path.join(weight_root, f"{name.replace('saliency', 'flat_autoencoder')}.h5")
     if 'saliency' in name:

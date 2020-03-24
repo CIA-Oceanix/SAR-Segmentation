@@ -12,8 +12,7 @@ def weighted_binary_crossentropy(y_true, y_pred, smooth=0.01):
     # y_pred = K.expand_dims(K.flatten(y_pred))
     size = K.sum(y_pred) + K.sum(1 - y_pred)
     weights = 1 - (K.sum(y_true) / size)
-    loss = - weights * y_true * K.log(y_pred + smooth) - \
-           (1 - weights + smooth) * (1 - y_true) * K.log(1 - y_pred + smooth)
+    loss = - weights * y_true * K.log(y_pred + smooth) - (1 - weights) * (1 - y_true) * K.log(1 - y_pred + smooth)
     return loss
 
 

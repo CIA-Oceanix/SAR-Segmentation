@@ -49,9 +49,9 @@ def categorizer_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
 def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE):
     folders = os.listdir(root)
     if len(folders) == 2:
-        colors = np.array([[0], [255]])
+        colors = np.array([[0], [1]])
     elif len(folders) > 2:
-        colors = np.eye(len(folders), dtype=np.int) * 255
+        colors = np.eye(len(folders), dtype=np.int) * 1
     else:
         raise ValueError(f'Number of folders (currently {len(folders)})should be more than 2')
 
@@ -60,8 +60,7 @@ def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE):
                for (i, folder) in enumerate(folders)
                for filename in os.listdir(os.path.join(root, folder))}
     filenames = list(mapping.keys())
-
-    input_canals = read(filenames[0]).shape[-1]
+    input_canals = read(filenames[0], input_shape=input_shape).shape[-1]
     while True:
         selected_filenames = np.random.choice(filenames, size=batch_size)
 

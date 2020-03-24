@@ -10,6 +10,12 @@ import fire
 import deprecation_warnings
 
 deprecation_warnings.filter_warnings()
+import tensorflow as tf
+import keras
+
+gpu_options = tf.GPUOptions(allow_growth=True)
+sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
+keras.backend.tensorflow_backend.set_session(sess)
 
 from keras.callbacks import ModelCheckpoint
 
