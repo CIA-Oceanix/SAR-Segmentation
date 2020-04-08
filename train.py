@@ -3,7 +3,7 @@ import os, sys
 sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 for arg in sys.argv:
     if arg.startswith('--run_on_gpu='):
-        os.environ['CUDA_VISIBLE_DEVICES'] = arg[-1]
+        os.environ['CUDA_VISIBLE_DEVICES'] = arg.split('=')[-1]
 
 import fire
 
@@ -42,6 +42,8 @@ from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_gen
 from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
 from Rignak_DeepLearning.config import get_config
 
+from Rignak_Misc.path import list_dir
+
 BATCH_SIZE = 16
 TRAINING_STEPS = 2000
 VALIDATION_STEPS = 500
@@ -58,36 +60,42 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
         train_generator = saliency_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
         val_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
         callback_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_autoencoder_generators():
         train_generator = autoencoder_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
         val_generator = autoencoder_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
         callback_generator = autoencoder_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_categorizer_generators():
         train_generator = categorizer_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
         val_generator = categorizer_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
         callback_generator = categorizer_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_style_transfer_generators():
         train_generator = thumb_generator(train_folder, input_shape=input_shape, batch_size=batch_size, scaling=scaling)
         val_generator = thumb_generator(val_folder, input_shape=input_shape, batch_size=batch_size, scaling=scaling)
         callback_gene = thumb_generator(val_folder, input_shape=input_shape, batch_size=batch_size, scaling=scaling)
+        next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_gene, train_folder
 
     def get_bimode_generators():
         train_generator = bimode_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
         val_generator = bimode_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
         callback_generator = bimode_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_regressor_generators():
         train_generator = regressor_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
         val_generator = regressor_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
         callback_generator = regressor_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_heatmap_generators():
@@ -111,6 +119,7 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
                                                batch_size=batch_size, input_label=input_label,
                                                output_label=output_label)
 
+        next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
@@ -142,6 +151,7 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
         new_callback_generator = normalize_generator(
             augment_generator(callback_generator, noise_function=noise_function, apply_on_output=True),
             normalizer, apply_on_output=True)
+
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_bimode_augmentation():
@@ -242,8 +252,11 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         model.class_weight = None
         return model
 
-    labels = [folder for folder in os.listdir(train_folder) if os.path.isdir(os.path.join(train_folder, folder))]
-    class_weight = [len(os.listdir(os.path.join(train_folder, folder))) for folder in labels]
+    path_labels = list_dir(train_folder)
+    print('path labels')
+    labels = [os.path.split(label)[-1] for label in path_labels]
+    class_weight = [len(os.listdir(folder)) for folder in path_labels]
+    print(class_weight)
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
     output_canals = config[task].get('OUTPUT_CANALS')
     functions = {"saliency": get_saliency_model,

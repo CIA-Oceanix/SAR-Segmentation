@@ -6,6 +6,7 @@ import glob
 import random
 
 from Rignak_DeepLearning.data import read
+from Rignak_Misc.path import list_dir, convert_link
 
 BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
@@ -14,7 +15,9 @@ ROTATION = 0.0
 
 
 def autoencoder_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
-    filenames = glob.glob(os.path.join(root, '*', '*.png')) + glob.glob(os.path.join(root, '*.png'))
+    filenames = glob.glob(os.path.join(root, '*', '*.*')) + glob.glob(os.path.join(root, '*.*'))
+
+    yield None
     while True:
         batch_path = np.random.choice(filenames, size=batch_size)
         batch_input = np.array([read(path, input_shape) for path in batch_path])
@@ -28,15 +31,19 @@ def make_categorizer_output(index, label_number):
 
 
 def categorizer_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
-    folders = [folder for folder in os.listdir(root) if os.path.isdir(os.path.join(root, folder))]
-    filename_to_hot_label = {os.path.join(root, folder, filename): make_categorizer_output(folders.index(folder),
-                                                                                           len(folders))
-                             for folder in folders
-                             for filename in os.listdir(os.path.join(root, folder))}
-    label_to_filename = {folder: [os.path.join(root, folder, filename)
-                                  for filename in os.listdir(os.path.join(root, folder))]
+    folders = list_dir(root)
+    filename_to_hot_label = {
+        os.path.join(folder, filename): make_categorizer_output(folders.index(folder), len(folders))
+        for folder in folders
+        for filename in os.listdir(folder)}
+    label_to_filename = {folder: [os.path.join(folder, filename)
+                                  for filename in os.listdir(folder)]
                          for folder in folders}
 
+    [convert_link(filename) for filenames in label_to_filename.values()
+     for filename in filenames if filename.endswith('.lnk')]
+
+    yield None
     while True:
         batch_labels = np.random.choice(folders, size=batch_size)
         batch_path = np.array([np.random.choice(label_to_filename[label]) for label in batch_labels])
@@ -47,7 +54,7 @@ def categorizer_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
 
 
 def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE):
-    folders = os.listdir(root)
+    folders = list_dir(root)
     if len(folders) == 2:
         colors = np.array([[0], [1]])
     elif len(folders) > 2:
@@ -56,11 +63,12 @@ def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE):
         raise ValueError(f'Number of folders (currently {len(folders)})should be more than 2')
 
     output_shape = (input_shape[0], input_shape[1], colors.shape[-1])
-    mapping = {os.path.join(root, folder, filename): colors[i]
+    mapping = {os.path.join(folder, filename): colors[i]
                for (i, folder) in enumerate(folders)
-               for filename in os.listdir(os.path.join(root, folder))}
+               for filename in os.listdir(folder)}
     filenames = list(mapping.keys())
     input_canals = read(filenames[0], input_shape=input_shape).shape[-1]
+    yield None
     while True:
         selected_filenames = np.random.choice(filenames, size=batch_size)
 
@@ -144,6 +152,7 @@ def thumbnail_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, in
     output_filenames = [os.path.join(root, output_root, filename)
                         for filename in os.listdir(os.path.join(root, output_root))]
     first_output = read(output_filenames[0])
+    yield None
     while True:
         batch_input = np.zeros((batch_size, input_shape[0], input_shape[1], input_shape[2]))
         batch_output = np.zeros((batch_size, input_shape[0], input_shape[1], first_output.shape[-1]))
@@ -182,8 +191,9 @@ def rotsym_augmentor(generator):
 
 
 def regressor_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
-    input_filenames = np.array(glob.glob(os.path.join(root, '*', '*.png')) + glob.glob(os.path.join(root, '*.png')))
+    input_filenames = np.array(glob.glob(os.path.join(root, '*', '*.*')) + glob.glob(os.path.join(root, '*.*')))
     output_filenames = np.array([os.path.splitext(filename)[0] + ".npy" for filename in input_filenames])
+    yield None
     while True:
         filenames_index = np.random.randint(0, len(input_filenames), size=batch_size)
 

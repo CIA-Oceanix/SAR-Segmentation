@@ -2,6 +2,7 @@ import numpy as np
 import imutils
 from functools import lru_cache
 
+import tensorflow as tf
 from keras.applications.vgg16 import VGG16
 from keras.models import Model, load_model
 from keras import backend as K
@@ -125,3 +126,11 @@ def get_space_roughness(generative, input_size, layers=(1, 2, 3, 4, 5, 6), batch
     perceptual_loss = get_perceptual_loss(input_size, generative=generative)
 
     return space_roughness
+
+
+def get_polarisation_metric(k):
+    def polarisation_metric(y_true, y_pred):
+        bottom_pred = tf.math.top_k(-y_pred, k=k).values
+        return K.mean(K.log(-bottom_pred))
+
+    return polarisation_metric

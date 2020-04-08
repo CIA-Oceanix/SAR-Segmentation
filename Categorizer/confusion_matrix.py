@@ -36,16 +36,16 @@ def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
     return confusion_matrix
 
 
-def plot_confusion_matrix(confusion_matrix, labels=None, clustering=False):
+def plot_confusion_matrix(confusion_matrix, labels=None, clustering=False, figsize=(18, 9), fmt='.2f'):
     if len(labels) == 2:
         clustering = False
     if clustering:
         confusion_matrix, labels, lines = create_clusters(confusion_matrix, labels)
 
-    plt.figure(figsize=(18, 9))
+    plt.figure(figsize=figsize)
     ax = plt.subplot()
 
-    sns.heatmap(confusion_matrix[::-1], annot=True, ax=ax, vmin=0, vmax=1, fmt='.2f')
+    sns.heatmap(confusion_matrix[::-1], annot=True, ax=ax, vmin=0, vmax=1, fmt=fmt)
 
     # labels, title and ticks
     ax.set_xlabel('Predicted labels')

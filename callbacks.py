@@ -33,6 +33,9 @@ class HistoryCallback(Callback):
         self.batch_size = batch_size
         self.training_steps = training_steps
 
+        self.metric = []
+        self.val_metric = []
+
     def on_train_begin(self, logs=None):
         filename = os.path.join(self.root, f'{self.model.name}.png')
         os.makedirs(os.path.split(filename)[0], exist_ok=True)
@@ -45,18 +48,30 @@ class HistoryCallback(Callback):
         self.losses.append(logs.get('loss'))
         self.val_losses.append(logs.get('val_loss'))
 
+        self.metric.append(logs.get('polarisation_metric'))
+        self.val_metric.append(logs.get('val_polarisation_metric'))
+
         if logs.get('acc'):
+            plt.figure(figsize=(12, 6))
             self.accuracy.append(logs.get('acc'))
             self.val_accuracy.append(logs.get('val_acc'))
 
-            plt.subplot(1, 2, 2)
+            plt.subplot(1, 3, 2)
             plt.plot(self.x, self.accuracy, label="Training")
             plt.plot(self.x, self.val_accuracy, label="Validation")
             plt.xlabel('kimgs')
             plt.ylabel('Accuracy')
             plt.ylim(0, 1)
             plt.legend()
-            plt.subplot(1, 2, 1)
+
+            plt.subplot(1, 3, 3)
+            plt.plot(self.x, self.metric, label="Training")
+            plt.plot(self.x, self.val_metric, label="Validation")
+            plt.xlabel('kimgs')
+            plt.ylabel('Mean magnitude of non-max values')
+            # plt.yscale('log')
+            plt.legend()
+            plt.subplot(1, 3, 1)
 
         plt.plot(self.x, self.losses, label="Training")
         plt.plot(self.x, self.val_losses, label="Validation")

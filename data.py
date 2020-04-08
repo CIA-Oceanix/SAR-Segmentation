@@ -4,10 +4,11 @@ from PIL import Image
 from skimage.transform import resize
 from tqdm import tqdm
 import functools
-
 import PIL.Image
 
 from keras.preprocessing import image as image_utils
+
+from Rignak_Misc.path import convert_link
 
 CANALS = 3
 
@@ -30,8 +31,10 @@ def data_on_folder(folder, size, canals=CANALS):
     return array, filenames
 
 
-# @functools.lru_cache(maxsize=2000)
+# @functools.lru_cache(maxsize=50000)
 def read(filename, input_shape=None):
+    if filename.endswith('.lnk'):
+        filename = convert_link(filename)
     with PIL.Image.open(filename) as im:
         im = np.array(im)
     try:

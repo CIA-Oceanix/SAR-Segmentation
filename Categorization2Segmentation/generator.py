@@ -34,14 +34,15 @@ def get_heatmap_generator_with_dummy_data(dummy_probability_increase=DUMMY_PROBA
 
         alternative_roots = [os.path.join(up_folder, folder) for folder in os.listdir(up_folder) if folder != label]
 
-        input_filenames = np.array(sorted(glob.glob(os.path.join(root, input_label, '*.png'))))
-        output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.png'))))
+        input_filenames = np.array(sorted(glob.glob(os.path.join(root, input_label, '*.*'))))
+        output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.*'))))
 
         dummy_input_filenames = np.array(sorted([filename for root in alternative_roots
                                                  for filename in glob.glob(os.path.join(root, generator_type,
-                                                                                        input_label, '*.png'))]))
+                                                                                        input_label, '*.*'))]))
 
         assert len(input_filenames) == len(output_filenames)
+        yield None
         while True:
             batch_index = np.random.randint(0, len(input_filenames), size=batch_size)
             batch_input_path = input_filenames[batch_index]
