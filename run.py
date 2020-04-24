@@ -26,11 +26,15 @@ def run_batch(array, model, batch_size=BATCH_SIZE, normalizer=None):
     return output
 
 
-def run_batch_on_filenames(filenames, model, batch_size=BATCH_SIZE, normalizer=None):
+def run_batch_on_filenames(filenames, model, batch_size=BATCH_SIZE, normalizer=None, use_tqdm=True):
     output_shape = model.layers[-1].output_shape[-1]
     input_shape = model.layers[0].input_shape[-3:]
     output = np.zeros((len(filenames), output_shape))
-    for batch_i in tqdm.tqdm(range(len(filenames) // batch_size + 1)):
+
+    batch_range = range(len(filenames) // batch_size + 1)
+    if use_tqdm:
+        batch_range = tqdm.tqdm(batch_range)
+    for batch_i in batch_range:
         batch_filename = filenames[batch_i * batch_size:(batch_i + 1) * batch_size]
         if not batch_filename:
             break

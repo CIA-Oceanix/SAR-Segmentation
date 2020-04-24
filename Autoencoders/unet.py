@@ -14,7 +14,7 @@ from Rignak_DeepLearning.loss import dice_coef_loss
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
 LOAD = False
-LEARNING_RATE = 10 ** -2
+LEARNING_RATE = 10 ** -3
 
 CONFIG_KEY = 'autoencoder'
 CONFIG = get_config()[CONFIG_KEY]
@@ -53,14 +53,15 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
         convs.append(conv)
 
     # central
-    block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False,
+    central_nodes = config.get('CENTRAL', conv_layers[-1] * 2)
+    block, conv = convolution_block(block, central_nodes, activation=activation, maxpool=False,
                                     batch_normalization=batch_normalization, block_depth=block_depth)
 
     # decoder
     for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
         if skipless:
             previous_conv = None
-        block = deconvolution_block(block, previous_conv, neurons, activation=activation)
+        block = deconvolution_block(block, previous_conv, neurons, activation=activation, block_depth=block_depth)
     conv_layer = Conv2D(output_canals, (1, 1), activation=last_activation)(block)
 
     model = Model(inputs=[inputs], outputs=[conv_layer])

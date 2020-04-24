@@ -52,11 +52,13 @@ class HistoryCallback(Callback):
         self.val_metric.append(logs.get('val_polarisation_metric'))
 
         if logs.get('acc'):
+            cols = 3 if logs.get('polarisation_metric') else 2
+
             plt.figure(figsize=(12, 6))
             self.accuracy.append(logs.get('acc'))
             self.val_accuracy.append(logs.get('val_acc'))
 
-            plt.subplot(1, 3, 2)
+            plt.subplot(1, cols, 2)
             plt.plot(self.x, self.accuracy, label="Training")
             plt.plot(self.x, self.val_accuracy, label="Validation")
             plt.xlabel('kimgs')
@@ -64,14 +66,16 @@ class HistoryCallback(Callback):
             plt.ylim(0, 1)
             plt.legend()
 
-            plt.subplot(1, 3, 3)
-            plt.plot(self.x, self.metric, label="Training")
-            plt.plot(self.x, self.val_metric, label="Validation")
-            plt.xlabel('kimgs')
-            plt.ylabel('Mean magnitude of non-max values')
-            # plt.yscale('log')
-            plt.legend()
-            plt.subplot(1, 3, 1)
+            if logs.get('polarisation_metric'):
+                plt.subplot(1, cols, 3)
+                plt.plot(self.x, self.metric, label="Training")
+                plt.plot(self.x, self.val_metric, label="Validation")
+                plt.xlabel('kimgs')
+                plt.ylabel('Mean magnitude of non-max values')
+                # plt.yscale('log')
+                plt.legend()
+
+            plt.subplot(1, cols, 1)
 
         plt.plot(self.x, self.losses, label="Training")
         plt.plot(self.x, self.val_losses, label="Validation")

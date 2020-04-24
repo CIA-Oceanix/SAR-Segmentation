@@ -27,6 +27,7 @@ from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCal
 from Rignak_DeepLearning.Autoencoders.flat import import_model as import_flat_model
 from Rignak_DeepLearning.Autoencoders.unet import import_model as import_unet_model
 from Rignak_DeepLearning.Categorizer.flat import import_model as import_categorizer
+from Rignak_DeepLearning.Categorizer.mosaic_categorizer import import_model as import_mosaic_categorizer
 from Rignak_DeepLearning.Categorizer.Inception import import_model_v3 as InceptionV3
 from Rignak_DeepLearning.BiOutput.flat import import_model as import_bimode
 from Rignak_DeepLearning.BiOutput.multiscale_autoencoder import import_model as import_multiscale_bimode
@@ -132,6 +133,7 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
                  "flat_autoencoder": get_autoencoder_generators,
                  "categorizer": get_categorizer_generators,
                  "inceptionV3": get_categorizer_generators,
+                 "mosaic_categorizer": get_categorizer_generators,
                  "style_transfer": get_style_transfer_generators,
                  "bimode": get_bimode_generators,
                  "multiscale_bimode": get_bimode_generators,
@@ -190,6 +192,7 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
                  "flat_autoencoder": get_im2im_data_augmentation,
                  "categorizer": get_categorizer_augmentation,
                  "inceptionV3": get_categorizer_augmentation,
+                 "mosaic_categorizer": get_categorizer_augmentation,
                  "bimode": get_bimode_augmentation,
                  "multiscale_bimode": get_bimode_augmentation,
                  "regressor": get_regressor_augmentation,
@@ -221,10 +224,18 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
     def get_categorizer_model():
         if task == 'inceptionV3':
             model = InceptionV3(input_shape, len(labels), name, load=load, imagenet=config[task].get('IMAGENET', False),
-                                class_weight=class_weight)
+                                class_weight=class_weight,
+                                last_activation=config[task].get('LAST_ACTIVATION', 'softmax'))
         else:
             model = import_categorizer(len(labels), config=config[task], name=name, load=load,
                                        class_weight=class_weight)
+        model.labels = labels
+        return model
+
+    def get_mosaic_categorizer_model():
+        model = import_mosaic_categorizer(input_shape, len(labels), name, load=load,
+                                          class_weight=class_weight,
+                                          last_activation=config[task].get('LAST_ACTIVATION', 'softmax'))
         model.labels = labels
         return model
 
@@ -265,6 +276,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
                  "flat_autoencoder": get_autoencoder_model,
                  "style_transfer": get_autoencoder_model,
                  "categorizer": get_categorizer_model,
+                 "mosaic_categorizer": get_mosaic_categorizer_model,
                  "inceptionV3": get_categorizer_model,
                  "bimode": get_bimode_model,
                  "multiscale_bimode": get_multiscale_bimode_model,
@@ -293,6 +305,7 @@ def get_callbacks(config, task, model, callback_generator):
     def get_categorizer_callbacks():
         callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
+                     ModelCheckpoint(model.weight_filename + ".{epoch:02d}.h5", save_best_only=True),
                      HistoryCallback(batch_size, training_steps),
                      ConfusionCallback(callback_generator, model.labels),
                      ClassificationExampleCallback(callback_generator, denormalizer=denormalizer)]
@@ -320,6 +333,7 @@ def get_callbacks(config, task, model, callback_generator):
                  "flat_autoencoder": get_im2im_callbacks,
                  "style_transfer": get_im2im_callbacks,
                  "categorizer": get_categorizer_callbacks,
+                 "mosaic_categorizer": get_categorizer_callbacks,
                  "inceptionV3": get_categorizer_callbacks,
                  "bimode": get_bimode_callbacks,
                  "multiscale_bimode": get_bimode_callbacks,
@@ -333,6 +347,8 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
          training_steps=TRAINING_STEPS, validation_steps=VALIDATION_STEPS, initial_epoch=INITIAL_EPOCH,
          **kwargs):
     config = get_config()
+    if task not in config:
+        config[task] = {'TASK': task}
     for key, value in kwargs.items():
         config[task][key] = value
     config[task]['DATASET'] = dataset

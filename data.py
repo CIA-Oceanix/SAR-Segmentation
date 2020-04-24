@@ -35,9 +35,9 @@ def data_on_folder(folder, size, canals=CANALS):
 def read(filename, input_shape=None):
     if filename.endswith('.lnk'):
         filename = convert_link(filename)
-    with PIL.Image.open(filename) as im:
-        im = np.array(im)
     try:
+        with PIL.Image.open(filename) as im:
+            im = np.array(im)
         if input_shape is not None and (im.shape[0] != input_shape[0] or im.shape[1] != input_shape[1]):
             im = resize(im, input_shape[:2])
         if len(im.shape) == 2:

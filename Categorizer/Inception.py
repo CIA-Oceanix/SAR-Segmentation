@@ -34,8 +34,7 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
     if input_shape[-1] == 1:
         img_input = Input(shape=input_shape)
         img_conc = concatenate([img_input, img_input, img_input])
-        base_model = InceptionV3(input_tensor=img_conc, classes=1,
-                                 include_top=False)
+        base_model = InceptionV3(input_tensor=img_conc, classes=1, include_top=False)
     else:
         base_model = InceptionV3(weights=weights, input_shape=input_shape, classes=output_shape, include_top=False)
         img_input = base_model.input
