@@ -38,35 +38,31 @@ def import_model(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summa
 
     inception_model = Model(inception_partial_model.input, inception_model_output)
 
-    layers = [
-        Lambda(lambda x: K.slice(x, [0, 0 * 128, 0 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 0 * 128, 1 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 0 * 128, 2 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 0 * 128, 3 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 1 * 128, 0 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 1 * 128, 1 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 1 * 128, 2 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 1 * 128, 3 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 2 * 128, 0 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 2 * 128, 1 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 2 * 128, 2 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 2 * 128, 3 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 3 * 128, 0 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 3 * 128, 1 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 3 * 128, 2 * 128, 0], [-1, 128, 128, -1]))(img_input),
-        Lambda(lambda x: K.slice(x, [0, 3 * 128, 3 * 128, 0], [-1, 128, 128, -1]))(img_input),
-    ]
+    def get_slice(i, j):
+        def slice(x):
+            return K.slice(x, [0, i * 128, j * 128, 0], [-1, 128, 128, -1])
 
-    for i, layer in enumerate(layers):
-        layer = concatenate([layer, layer, layer])
-        layer = Lambda(lambda x: K.expand_dims(x, axis=1))(layer)
-        layers[i] = layer
+        return slice
+
+    layers = []
+    for i in range(4):
+        for j in range(4):
+            layer = Lambda(get_slice(i, j))(img_input)
+            layer = concatenate([layer, layer, layer])
+            layer = Lambda(lambda x: K.expand_dims(x, axis=1))(layer)
+            layers.append(layer)
 
     mosaic = concatenate(layers, axis=1)
+    print(mosaic.shape)
     mosaic = Lambda(lambda x: K.reshape(x, (K.shape(x)[0] * K.shape(x)[1], 128, 128, 3)))(mosaic)
+    print(mosaic.shape)
     mosaic = inception_model(mosaic)
-    mosaic = Lambda(lambda x: K.reshape(x, (K.shape(x)[0] // len(layers), len(layers), output_shape)))(mosaic)
+    print(mosaic.shape)
+    mosaic = Lambda(lambda x: K.reshape(x, (K.shape(x)[0] // 16, 16, output_shape)))(mosaic)
+    print(mosaic.shape)
     mosaic = Lambda(lambda x: K.mean(x, axis=1))(mosaic)
+    print(mosaic.shape)
+    # mosaic = Softmax()(mosaic)
 
     model = Model(img_input, outputs=mosaic)
 
