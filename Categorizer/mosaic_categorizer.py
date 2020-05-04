@@ -9,7 +9,7 @@ from Rignak_DeepLearning import deprecation_warnings
 deprecation_warnings.filter_warnings()
 
 from keras.applications.inception_v3 import InceptionV3
-from keras.layers import Dense, GlobalAveragePooling2D, Input, concatenate, Lambda, average, Softmax
+from keras.layers import Dense, GlobalAveragePooling2D, Input, concatenate, Lambda
 from keras.models import Model
 from keras_radam.training import RAdamOptimizer
 import keras.backend as K
@@ -53,16 +53,10 @@ def import_model(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summa
             layers.append(layer)
 
     mosaic = concatenate(layers, axis=1)
-    print(mosaic.shape)
     mosaic = Lambda(lambda x: K.reshape(x, (K.shape(x)[0] * K.shape(x)[1], 128, 128, 3)))(mosaic)
-    print(mosaic.shape)
     mosaic = inception_model(mosaic)
-    print(mosaic.shape)
     mosaic = Lambda(lambda x: K.reshape(x, (K.shape(x)[0] // 16, 16, output_shape)))(mosaic)
-    print(mosaic.shape)
     mosaic = Lambda(lambda x: K.mean(x, axis=1))(mosaic)
-    print(mosaic.shape)
-    # mosaic = Softmax()(mosaic)
 
     model = Model(img_input, outputs=mosaic)
 

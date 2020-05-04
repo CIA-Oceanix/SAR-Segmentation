@@ -29,6 +29,7 @@ from Rignak_DeepLearning.Autoencoders.unet import import_model as import_unet_mo
 from Rignak_DeepLearning.Categorizer.flat import import_model as import_categorizer
 from Rignak_DeepLearning.Categorizer.mosaic_categorizer import import_model as import_mosaic_categorizer
 from Rignak_DeepLearning.Categorizer.Inception import import_model_v3 as InceptionV3
+from Rignak_DeepLearning.Categorizer.masked_categorizer import import_model as import_masked_categorizer
 from Rignak_DeepLearning.BiOutput.flat import import_model as import_bimode
 from Rignak_DeepLearning.BiOutput.multiscale_autoencoder import import_model as import_multiscale_bimode
 from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator, \
@@ -134,6 +135,7 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
                  "categorizer": get_categorizer_generators,
                  "inceptionV3": get_categorizer_generators,
                  "mosaic_categorizer": get_categorizer_generators,
+                 "masked_categorizer": get_categorizer_generators,
                  "style_transfer": get_style_transfer_generators,
                  "bimode": get_bimode_generators,
                  "multiscale_bimode": get_bimode_generators,
@@ -193,6 +195,7 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
                  "categorizer": get_categorizer_augmentation,
                  "inceptionV3": get_categorizer_augmentation,
                  "mosaic_categorizer": get_categorizer_augmentation,
+                 "masked_categorizer": get_categorizer_augmentation,
                  "bimode": get_bimode_augmentation,
                  "multiscale_bimode": get_bimode_augmentation,
                  "regressor": get_regressor_augmentation,
@@ -239,6 +242,12 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         model.labels = labels
         return model
 
+    def get_masked_categorizer_model():
+        model = import_masked_categorizer(input_shape, len(labels), name, config[task], load=load,
+                                          class_weight=class_weight)
+        model.labels = labels
+        return model
+
     def get_bimode_model():
         model = import_bimode(output_canals, labels, config=config[task], name=name, load=load)
         model.labels = labels
@@ -277,6 +286,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
                  "style_transfer": get_autoencoder_model,
                  "categorizer": get_categorizer_model,
                  "mosaic_categorizer": get_mosaic_categorizer_model,
+                 "masked_categorizer": get_masked_categorizer_model,
                  "inceptionV3": get_categorizer_model,
                  "bimode": get_bimode_model,
                  "multiscale_bimode": get_multiscale_bimode_model,
@@ -334,6 +344,7 @@ def get_callbacks(config, task, model, callback_generator):
                  "style_transfer": get_im2im_callbacks,
                  "categorizer": get_categorizer_callbacks,
                  "mosaic_categorizer": get_categorizer_callbacks,
+                 "masked_categorizer": get_categorizer_callbacks,
                  "inceptionV3": get_categorizer_callbacks,
                  "bimode": get_bimode_callbacks,
                  "multiscale_bimode": get_bimode_callbacks,

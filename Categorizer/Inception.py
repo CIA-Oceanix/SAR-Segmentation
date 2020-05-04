@@ -18,6 +18,7 @@ LOAD = False
 IMAGENET = False
 DEFAULT_LOSS = 'categorical_crossentropy'
 DEFAULT_METRICS = ['accuracy', get_polarisation_metric(4)]
+DEFAULT_METRICS = ['accuracy']
 LAST_ACTIVATION = 'softmax'
 LEARNING_RATE = 10 ** -5
 
