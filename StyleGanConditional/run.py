@@ -16,6 +16,7 @@ import numpy as np
 import tqdm
 import tensorflow as tf
 import skimage
+import skimage.transform
 
 from Rignak_Misc.path import get_local_file
 
@@ -42,10 +43,10 @@ LABELS = [(label, np.eye(10)[i])
 #     LABELS.append((f"{a}x{LABELS[2][0]}+{b}x{LABELS[6][0]}", a * LABELS[2][1] + b * LABELS[6][1]))
 
 # Add ALL and NONE
-LABELS.append((f"None", np.zeros(10)))
-LABELS.append((f"All", np.ones(10)))
+# LABELS.append((f"None", np.zeros(10)))
+# LABELS.append((f"All", np.ones(10)))
 
-NUMBER_OF_PICTURES = 100 * len(LABELS)
+NUMBER_OF_PICTURES = 4 * len(LABELS)
 
 
 def get_generative(model, truncation_psi=TRUNCATION_PSI):
@@ -83,6 +84,7 @@ def main(model_filename=DEFAULT_MODEL, truncation_psi=TRUNCATION_PSI, result_roo
     generative = get_generative(Gs, truncation_psi=truncation_psi)
 
     layers = {name: tensor for name, tensor, _ in Gs.list_layers()}
+    mosaic = np.zeros((NUMBER_OF_PICTURES // len(labels) * THUMB_SIZE, len(labels) * THUMB_SIZE, 3))
     for i in tqdm.trange(number_of_pictures):
         label_name, label_input = labels[i % len(labels)]
         label_input = np.expand_dims(label_input, axis=0)
@@ -107,6 +109,12 @@ def main(model_filename=DEFAULT_MODEL, truncation_psi=TRUNCATION_PSI, result_roo
         np.save(f'{filename}.npy', truncation_output[0])
         image.save(f"{filename}.png")
 
+        mosaic[(i // len(labels)) * THUMB_SIZE:(i // len(labels) + 1) * THUMB_SIZE,
+        (i % len(labels)) * THUMB_SIZE:(i % len(labels) + 1) * THUMB_SIZE] = image
+
+    print(mosaic.max())
+    mosaic = PIL.Image.fromarray(mosaic.astype('uint8'))
+    mosaic.save(os.path.join(result_root, f"{os.path.splitext(os.path.split(model_filename)[-1])[0]}_mosaic.png"))
 
 if __name__ == "__main__":
     fire.Fire(main)

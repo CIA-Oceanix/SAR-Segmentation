@@ -238,7 +238,9 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
     def get_mosaic_categorizer_model():
         model = import_mosaic_categorizer(input_shape, len(labels), name, load=load,
                                           class_weight=class_weight,
-                                          last_activation=config[task].get('LAST_ACTIVATION', 'softmax'))
+                                          last_activation=config[task].get('LAST_ACTIVATION', 'softmax'),
+                                          modality=config[task].get('MODALITY', 'mean')
+                                          )
         model.labels = labels
         return model
 

@@ -210,6 +210,7 @@
   },
   "masked_categorizer": {
     "TASK": "masked_categorizer",
+    "MODALITY": "mean",
     "IMAGENET": false,
     "INPUT_SHAPE": [
       256,
