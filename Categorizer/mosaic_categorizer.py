@@ -56,30 +56,35 @@ def import_model(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summa
     mosaic = inception_model(mosaic)
     mosaic = Lambda(lambda x: K.reshape(x, (K.shape(x)[0] // 49, 49, output_shape)), name="mosaic")(mosaic)
 
-    local_classes = K.constant([1, 0, 1, 0, 0, 1, 0, 1, 0, 0])
-    local_classes = K.reshape(local_classes, (1, 10,))
-
-    global_classes = K.constant([0, 1, 0, 1, 1, 0, 1, 0, 1, 1])
-    global_classes = K.reshape(global_classes, (1, 10))
-
     if 'mean' in modality:
         mean_mosaic = Lambda(lambda x: K.mean(x, axis=1))(mosaic)
         output = mean_mosaic
     if 'max' in modality:
         max_mosaic = Lambda(lambda x: K.max(x, axis=1))(mosaic)
         output = max_mosaic
+    if 'min' in modality:
+        min_mosaic = Lambda(lambda x: K.min(x, axis=1))(mosaic)
+        output = max_mosaic
 
     if modality == 'mean_and_max':
         mean_and_max_mosaic = add([max_mosaic, mean_mosaic])
         output = mean_and_max_mosaic
     elif modality == 'mean_or_max':
-        local_mean_mosaic = Lambda(lambda x: x * local_classes)(mean_mosaic)
-        global_max_mosaic = Lambda(lambda x: x * global_classes)(max_mosaic)
+        local_mean_mosaic = Lambda(lambda x: x * K.constant([[1, 0, 1, 0, 0, 1, 0, 1, 0, 0]]))(mean_mosaic)
+        global_max_mosaic = Lambda(lambda x: x * K.constant([[0, 1, 0, 1, 1, 0, 1, 0, 1, 1]]))(max_mosaic)
         output = add([global_max_mosaic, local_mean_mosaic])
     elif modality == 'mean_or_max_inv':
-        local_max_mosaic = Lambda(lambda x: x * local_classes)(max_mosaic)
-        global_mean_mosaic = Lambda(lambda x: x * global_classes)(mean_mosaic)
+        local_max_mosaic = Lambda(lambda x: x * K.constant([[1, 0, 1, 0, 0, 1, 0, 1, 0, 0]]))(max_mosaic)
+        global_mean_mosaic = Lambda(lambda x: x * K.constant([[0, 1, 0, 1, 1, 0, 1, 0, 1, 1]]))(mean_mosaic)
         output = add([local_max_mosaic, global_mean_mosaic])
+    elif modality == 'min_or_max':
+        local_min_mosaic = Lambda(lambda x: x * K.constant([[1, 0, 1, 0, 0, 1, 0, 1, 0, 0]]))(min_mosaic)
+        global_max_mosaic = Lambda(lambda x: x * K.constant([[0, 1, 0, 1, 1, 0, 1, 0, 1, 1]]))(max_mosaic)
+        output = add([global_max_mosaic, local_min_mosaic])
+    elif modality == 'min_or_max_inv':
+        local_max_mosaic = Lambda(lambda x: x * K.constant([[1, 0, 1, 0, 0, 1, 0, 1, 0, 0]]))(max_mosaic)
+        global_min_mosaic = Lambda(lambda x: x * K.constant([[0, 1, 0, 1, 1, 0, 1, 0, 1, 1]]))(min_mosaic)
+        output = add([local_max_mosaic, global_min_mosaic])
 
     model = Model(img_input, outputs=output)
 
