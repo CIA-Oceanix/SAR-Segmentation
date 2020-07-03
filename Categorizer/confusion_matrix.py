@@ -21,7 +21,7 @@ def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
     while i < limit:
         inputs, groundtruths = next(generator)
         predictions = model.predict(inputs)
-        if len(predictions) == 2:  # added to support the bimode
+        if False and len(predictions) == 2:  # added to support the bimode, but doesn't work with batch_size=2
             predictions = predictions[0]
             groundtruths = groundtruths[0]
         for groundtruth, prediction in zip(groundtruths, predictions):
@@ -32,7 +32,9 @@ def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
             i += 1
 
     for i in range(confusion_matrix.shape[0]):
-        confusion_matrix[i] /= np.sum(confusion_matrix[i])
+        line_sum = np.sum(confusion_matrix[i])
+        if line_sum:
+            confusion_matrix[i] = confusion_matrix[i] / line_sum
     return confusion_matrix
 
 
