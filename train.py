@@ -28,6 +28,8 @@ from Rignak_DeepLearning.Autoencoders.flat import import_model as import_flat_mo
 from Rignak_DeepLearning.Autoencoders.unet import import_model as import_unet_model
 from Rignak_DeepLearning.Categorizer.flat import import_model as import_categorizer
 from Rignak_DeepLearning.Categorizer.mosaic_categorizer import import_model as import_mosaic_categorizer
+from Rignak_DeepLearning.Categorizer.multiscale_mosaic_categorizer import \
+    import_model as import_multiscale_mosaic_categorizer
 from Rignak_DeepLearning.Categorizer.Inception import import_model_v3 as InceptionV3
 from Rignak_DeepLearning.Categorizer.masked_categorizer import import_model as import_masked_categorizer
 from Rignak_DeepLearning.BiOutput.flat import import_model as import_bimode
@@ -82,9 +84,10 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
     def get_style_transfer_generators():
         train_generator = thumb_generator(train_folder, input_shape=input_shape, batch_size=batch_size, scaling=scaling)
         val_generator = thumb_generator(val_folder, input_shape=input_shape, batch_size=batch_size, scaling=scaling)
-        callback_gene = thumb_generator(val_folder, input_shape=input_shape, batch_size=batch_size, scaling=scaling)
+        callback_generator = thumb_generator(val_folder, input_shape=input_shape, batch_size=batch_size,
+                                             scaling=scaling)
         next(train_generator), next(val_generator), next(callback_generator)
-        return train_generator, val_generator, callback_gene, train_folder
+        return train_generator, val_generator, callback_generator, train_folder
 
     def get_bimode_generators():
         train_generator = bimode_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
@@ -135,6 +138,7 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
                  "categorizer": get_categorizer_generators,
                  "inceptionV3": get_categorizer_generators,
                  "mosaic_categorizer": get_categorizer_generators,
+                 "multiscale_mosaic_categorizer": get_categorizer_generators,
                  "masked_categorizer": get_categorizer_generators,
                  "style_transfer": get_style_transfer_generators,
                  "bimode": get_bimode_generators,
@@ -195,6 +199,7 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
                  "categorizer": get_categorizer_augmentation,
                  "inceptionV3": get_categorizer_augmentation,
                  "mosaic_categorizer": get_categorizer_augmentation,
+                 "multiscale_mosaic_categorizer": get_categorizer_augmentation,
                  "masked_categorizer": get_categorizer_augmentation,
                  "bimode": get_bimode_augmentation,
                  "multiscale_bimode": get_bimode_augmentation,
@@ -244,6 +249,15 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         model.labels = labels
         return model
 
+    def get_multiscale_mosaic_categorizer_model():
+        model = import_multiscale_mosaic_categorizer(input_shape, len(labels), name, load=load,
+                                                     class_weight=class_weight,
+                                                     last_activation=config[task].get('LAST_ACTIVATION', 'softmax'),
+                                                     modality=config[task].get('MODALITY', 'mean')
+                                                     )
+        model.labels = labels
+        return model
+
     def get_masked_categorizer_model():
         model = import_masked_categorizer(input_shape, len(labels), name, config[task], load=load,
                                           class_weight=class_weight)
@@ -275,10 +289,8 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         return model
 
     path_labels = list_dir(train_folder)
-    print('path labels')
     labels = [os.path.split(label)[-1] for label in path_labels]
     class_weight = [len(os.listdir(folder)) for folder in path_labels]
-    print(class_weight)
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
     output_canals = config[task].get('OUTPUT_CANALS')
     functions = {"saliency": get_saliency_model,
@@ -288,6 +300,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
                  "style_transfer": get_autoencoder_model,
                  "categorizer": get_categorizer_model,
                  "mosaic_categorizer": get_mosaic_categorizer_model,
+                 "multiscale_mosaic_categorizer": get_multiscale_mosaic_categorizer_model,
                  "masked_categorizer": get_masked_categorizer_model,
                  "inceptionV3": get_categorizer_model,
                  "bimode": get_bimode_model,
@@ -317,7 +330,7 @@ def get_callbacks(config, task, model, callback_generator):
     def get_categorizer_callbacks():
         callbacks = [SaveAttributes(callback_generator, config[task], labels=model.labels),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
-                     ModelCheckpoint(model.weight_filename + ".{epoch:02d}.h5", save_best_only=True),
+                     # ModelCheckpoint(model.weight_filename + ".{epoch:02d}.h5", save_best_only=True),
                      HistoryCallback(batch_size, training_steps),
                      ConfusionCallback(callback_generator, model.labels),
                      ClassificationExampleCallback(callback_generator, denormalizer=denormalizer)]
@@ -325,7 +338,7 @@ def get_callbacks(config, task, model, callback_generator):
 
     def get_regressor_callback():
         callbacks = [SaveAttributes(callback_generator, config[task]),
-                     ModelCheckpoint(model.weight_filename, save_best_only=True),
+                     ModelCheckpoint(model.weight_filename, save_best_only=False),
                      HistoryCallback(batch_size, training_steps),
                      GanRegressorExampleCallback(callback_generator,
                                                  gan_filename=config[task]["GAN_FILENAME"],
@@ -346,6 +359,7 @@ def get_callbacks(config, task, model, callback_generator):
                  "style_transfer": get_im2im_callbacks,
                  "categorizer": get_categorizer_callbacks,
                  "mosaic_categorizer": get_categorizer_callbacks,
+                 "multiscale_mosaic_categorizer": get_categorizer_callbacks,
                  "masked_categorizer": get_categorizer_callbacks,
                  "inceptionV3": get_categorizer_callbacks,
                  "bimode": get_bimode_callbacks,
