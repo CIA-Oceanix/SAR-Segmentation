@@ -4,6 +4,8 @@ import os
 from keras.models import Model, load_model
 from keras.layers import Input, Conv2D, Dropout, concatenate
 from keras_radam.training import RAdamOptimizer
+from keras.optimizers import Adam
+import runai.ga.keras
 
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.models import convolution_block
@@ -21,10 +23,11 @@ CONFIG = get_config()[CONFIG_KEY]
 DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 DROPOUT = 0.
+GRADIENT_ACCUMULATION = 32
 
 
 def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
-                 name=DEFAULT_NAME, config=CONFIG, dropout=DROPOUT):
+                 name=DEFAULT_NAME, config=CONFIG, dropout=DROPOUT, gradient_accumulation=GRADIENT_ACCUMULATION):
     weight_filename = os.path.join(weight_root, f"{name}.h5")
     summary_filename = os.path.join(summary_root, f"{name}.txt")
     convs = []
@@ -74,7 +77,10 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
             block, _ = convolution_block(block, neurons, activation=activation, maxpool=False)
 
     outputs = Conv2D(output_canals, (1, 1), activation=last_activation, name='output')(block)
+
     optimizer = RAdamOptimizer(learning_rate)
+    optimizer = Adam(learning_rate)
+    optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
 
     model = Model(inputs=[inputs], outputs=[outputs])
     model.compile(optimizer=optimizer, loss=loss)

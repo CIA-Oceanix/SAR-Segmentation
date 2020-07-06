@@ -11,7 +11,10 @@ from keras.applications.inception_v3 import InceptionV3
 from keras.layers import Dense, GlobalAveragePooling2D, Input, concatenate, Lambda, add
 from keras.models import Model
 from keras_radam.training import RAdamOptimizer
+from keras.optimizers import Adam
 import keras.backend as K
+import runai.ga.keras
+
 
 from Rignak_DeepLearning.Categorizer.flat import WEIGHT_ROOT, SUMMARY_ROOT
 
@@ -22,10 +25,12 @@ DEFAULT_METRICS = ['accuracy']
 LAST_ACTIVATION = 'softmax'
 LEARNING_RATE = 10 ** -5
 MODALITY = 'mean'
+GRADIENT_ACCUMULATION = 16
 
 def import_model(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
                  loss=DEFAULT_LOSS, metrics=DEFAULT_METRICS, last_activation=LAST_ACTIVATION,
-                 class_weight=None, learning_rate=LEARNING_RATE, modality=MODALITY):
+                 class_weight=None, learning_rate=LEARNING_RATE, modality=MODALITY,
+                 gradient_accumulation=GRADIENT_ACCUMULATION):
     assert input_shape == (512, 512, 1)
 
     img_input = Input(shape=input_shape)
@@ -89,6 +94,8 @@ def import_model(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summa
     model = Model(img_input, outputs=output)
 
     optimizer = RAdamOptimizer(learning_rate)
+    optimizer = Adam(learning_rate)
+    optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     model.name = name
 
