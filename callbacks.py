@@ -190,12 +190,16 @@ class SaveAttributes(Callback):
 
         val_losses = [log['val_loss'] for log in self.saved_logs]
         dict_to_save = {"_logs": self.saved_logs, "_labels": self.labels, "_config": self.config}
+        with open(self.model.weight_filename + '.json', 'w') as file:
+            json.dump(dict_to_save, file, sort_keys=True, indent=4)
+
         if np.argmax(val_losses) == len(val_losses) - 1:
             self.input_ = input_.tolist()
             self.groundtruth = groundtruth.tolist()
             self.output = self.model.predict(input_).tolist()
-        dict_to_save['input'] = self.input_
-        dict_to_save['output'] = self.output
-        dict_to_save['groundtruth'] = self.groundtruth
-        with open(self.model.weight_filename + '.json', 'w') as file:
-            json.dump(dict_to_save, file, sort_keys=True, indent=4)
+            
+        samples_to_save = {'input': self.input_,
+                           "output": self.output, "groundtruth":
+                               self.groundtruth}
+        with open(self.model.weight_filename + '_samples.json', 'w') as file:
+            json.dump(samples_to_save, file, sort_keys=True, indent=4)
