@@ -36,8 +36,12 @@ def read(filename, input_shape=None):
     if filename.endswith('.lnk'):
         filename = convert_link(filename)
     try:
-        with PIL.Image.open(filename) as im:
-            im = np.array(im)
+        if os.path.splitext(filename)[-1] == '.npy':
+            with open(filename, 'rb') as numpy_filename:
+                im = np.load(numpy_filename)
+        else:
+            with PIL.Image.open(filename) as im:
+                im = np.array(im)
         if input_shape is not None and (im.shape[0] != input_shape[0] or im.shape[1] != input_shape[1]):
             im = resize(im, input_shape[:2])
         if len(im.shape) == 2:
@@ -47,6 +51,8 @@ def read(filename, input_shape=None):
         elif im.shape[-1] == 3 and input_shape[-1] == 1:
             im = np.mean(im, axis=-1)
             im = np.expand_dims(im, axis=-1)
+        elif im.shape[-1] == 4 and input_shape[-1] == 3:
+            im = im[:, :, :3]
         if im.max() > 1:
             im = im / 255
     except Exception as e:

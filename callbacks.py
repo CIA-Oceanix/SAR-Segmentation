@@ -197,9 +197,9 @@ class SaveAttributes(Callback):
             self.input_ = input_.tolist()
             self.groundtruth = groundtruth.tolist()
             self.output = self.model.predict(input_).tolist()
-            
+
         samples_to_save = {'input': self.input_,
-                           "output": self.output, "groundtruth":
-                               self.groundtruth}
+                           "output": self.output,
+                           "groundtruth": self.groundtruth}
         with open(self.model.weight_filename + '_samples.json', 'w') as file:
             json.dump(samples_to_save, file, sort_keys=True, indent=4)

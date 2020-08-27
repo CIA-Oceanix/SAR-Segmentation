@@ -1,44 +1,49 @@
-import sys
 import os
+import sys
+
+os.environ['CUDA_VISIBLE_DEVICES'] = '0'
+import Rignak_DeepLearning.deprecation_warnings
 
 from keras.models import Model
-from keras.layers import Input, Conv2D
+from keras.layers import Input, GlobalAveragePooling2D, Dense
+from keras.optimizers import Adam
 from keras_radam.training import RAdamOptimizer
+import runai.ga.keras
 
 from Rignak_Misc.path import get_local_file
-from Rignak_DeepLearning.models import convolution_block, deconvolution_block
 from Rignak_DeepLearning.config import get_config
+from Rignak_DeepLearning.models import convolution_block, deconvolution_block
 
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
 LOAD = False
-LEARNING_RATE = 10 ** -3
+LEARNING_RATE = 10 ** -4
 
 CONFIG_KEY = 'autoencoder'
 CONFIG = get_config()[CONFIG_KEY]
 DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
+GRADIENT_ACCUMULATION = 4
+DEFAULT_METRICS = ['accuracy']
 
 
 def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
-                 config=CONFIG, name=DEFAULT_NAME):
-    skipless = config.get('SKIPLESS', False)
-
-    name = f"{name}_{['skippy', 'skipless'][skipless]}"
+                 config=CONFIG, name=DEFAULT_NAME, gradient_accumulation=GRADIENT_ACCUMULATION,
+                 metrics=DEFAULT_METRICS):
     weight_filename = os.path.join(weight_root, f"{name}.h5")
     summary_filename = os.path.join(summary_root, f"{name}.txt")
     convs = []
     block = None
 
-    batch_normalization = config.get('BATCH_NORMALIZATION', False)
-    conv_layers = config['CONV_LAYERS']
+    batch_normalization = False
+    conv_layers = config.get('CONV_LAYERS', [32, 64])
 
     input_shape = config.get('INPUT_SHAPE', (256, 256, 3))
     activation = config.get('ACTIVATION', 'relu')
     last_activation = config.get('LAST_ACTIVATION', 'sigmoid')
-    output_canals = config.get('OUTPUT_CANALS', input_shape[-1])
+    output_canals = config.get('OUTPUT_CANALS')
     block_depth = config.get('BLOCK_DEPTH', 3)
 
-    loss = config.get('LOSS', 'mse')
+    loss = config.get('LOSS', 'categorical_crossentropy')
 
     inputs = Input(input_shape)
     # encoder
@@ -58,14 +63,15 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
 
     # decoder
     for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
-        if skipless:
-            previous_conv = None
         block = deconvolution_block(block, previous_conv, neurons, activation=activation, block_depth=block_depth)
-    conv_layer = Conv2D(output_canals, (1, 1), activation=last_activation)(block)
+    average_layer = GlobalAveragePooling2D()(block)
+    output_layer = Dense(output_canals, activation=last_activation, use_bias=False)(average_layer)
 
-    model = Model(inputs=[inputs], outputs=[conv_layer])
-    optimizer = RAdamOptimizer(learning_rate)
-    model.compile(optimizer=optimizer, loss=loss)
+    model = Model(inputs=[inputs], outputs=[output_layer])
+
+    optimizer = Adam(learning_rate)
+    optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     model.name = name
     model.weight_filename = weight_filename
@@ -79,5 +85,8 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
         sys.stdout = file
         model.summary()
         sys.stdout = old
-
     return model
+
+
+if __name__ == '__main__':
+    gan = import_model()

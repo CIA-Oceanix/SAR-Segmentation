@@ -5,7 +5,9 @@ from keras.models import Model
 from keras.optimizers import SGD
 from keras.regularizers import l2
 from keras.layers import Input, Dense, Dropout, Flatten
+from keras.optimizers import Adam
 from keras_radam.training import RAdamOptimizer
+import runai.ga.keras
 
 
 from Rignak_Misc.path import get_local_file
@@ -17,16 +19,17 @@ SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'
 
 LOAD = False
 
-LEARNING_RATE = 10 ** -2
+LEARNING_RATE = 10 ** -3
 
 CONFIG_KEY = 'categorizer'
 CONFIG = get_config()[CONFIG_KEY]
 DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
+GRADIENT_ACCUMULATION = 8
 
 
 def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
                  learning_rate=LEARNING_RATE, name=DEFAULT_NAME, config=CONFIG,
-                 class_weight=None):
+                 class_weight=None, gradient_accumulation=GRADIENT_ACCUMULATION):
     weight_filename = os.path.join(weight_root, f"{name}.h5")
     summary_filename = os.path.join(summary_root, f"{name}.txt")
 
@@ -57,6 +60,8 @@ def import_model(output_canals, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_RO
 
     print('learning rate', learning_rate)
     optimizer = RAdamOptimizer(learning_rate)
+    optimizer = Adam(learning_rate)
+    optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
     model.compile(optimizer=optimizer, loss='categorical_crossentropy', metrics=['accuracy'])
 
     model.name = name

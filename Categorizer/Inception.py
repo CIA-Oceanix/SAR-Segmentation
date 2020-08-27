@@ -4,7 +4,9 @@ import sys
 from keras.applications.inception_v3 import InceptionV3
 from keras.layers import Dense, GlobalAveragePooling2D, Input, concatenate
 from keras.models import Model
+from keras.optimizers import Adam
 from keras_radam.training import RAdamOptimizer
+import runai.ga.keras
 
 from Rignak_DeepLearning.Categorizer.flat import WEIGHT_ROOT, SUMMARY_ROOT
 
@@ -21,11 +23,12 @@ DEFAULT_METRICS = ['accuracy', get_polarisation_metric(4)]
 DEFAULT_METRICS = ['accuracy']
 LAST_ACTIVATION = 'softmax'
 LEARNING_RATE = 10 ** -5
+GRADIENT_ACCUMULATION = 8
 
 
 def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
                     imagenet=IMAGENET, loss=DEFAULT_LOSS, metrics=DEFAULT_METRICS, last_activation=LAST_ACTIVATION,
-                    class_weight=None, learning_rate=LEARNING_RATE):
+                    class_weight=None, learning_rate=LEARNING_RATE, gradient_accumulation=GRADIENT_ACCUMULATION):
     if imagenet:
         print('Will load imagenet weights')
         weights = "imagenet"
@@ -50,6 +53,9 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
             layer.trainable = False
 
     optimizer = RAdamOptimizer(learning_rate)
+    optimizer = Adam(learning_rate)
+    optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
+    
     if class_weight is not None:
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     else:

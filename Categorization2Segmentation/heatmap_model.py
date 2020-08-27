@@ -33,9 +33,10 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     input_shape = config.get('INPUT_SHAPE', (512, 512, 3))
     output_shape = config.get('OUTPUT_SHAPE', (32, 32, 1))
     activation = config.get('ACTIVATION', 'relu')
-    last_activation = config.get('ACTIVATION', 'sigmoid')
+    last_activation = config.get('LAST_ACTIVATION', 'sigmoid')
     loss = config.get('LOSS', 'mse')
     output_canals = output_shape[-1]
+    print(config)
 
     inputs = Input(input_shape)
     # encoder
@@ -54,10 +55,10 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
 
     # decoder
     for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
-        block = deconvolution_block(block, previous_conv, neurons, activation=activation)
         if block.shape[1] == output_shape[0] and block.shape[2] == output_shape[1]:
-            conv_layer = Conv2D(output_canals, (1, 1), activation=last_activation)(block)
             break
+        block = deconvolution_block(block, previous_conv, neurons, activation=activation)
+    conv_layer = Conv2D(output_canals, (1, 1), activation=last_activation)(block)
 
     model = Model(inputs=[inputs], outputs=[conv_layer])
     optimizer = RAdamOptimizer(learning_rate)

@@ -11,7 +11,7 @@ from Rignak_Misc.path import list_dir, convert_link
 BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
 ZOOM = 0.0
-ROTATION = 0.0
+ROTATION = 0
 
 
 def autoencoder_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
@@ -47,37 +47,45 @@ def categorizer_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
     while True:
         batch_labels = np.random.choice(folders, size=batch_size)
         batch_path = np.array([np.random.choice(label_to_filename[label]) for label in batch_labels])
-
         batch_input = np.array([read(path, input_shape=input_shape) for path in batch_path])
         batch_output = np.array([filename_to_hot_label[filename] for filename in batch_path])
         yield batch_input, batch_output
 
 
-def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE):
+def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE, downsampling=0):
     folders = list_dir(root)
     if len(folders) == 2:
         colors = np.array([[0], [1]])
     elif len(folders) > 2:
         colors = np.eye(len(folders), dtype=np.int) * 1
     else:
-        raise ValueError(f'Number of folders (currently {len(folders)})should be more than 2')
+        raise ValueError(f'Number of folders (currently {len(folders)}) should be equal or greater than 2')
 
-    output_shape = (input_shape[0], input_shape[1], colors.shape[-1])
+    output_shape = (int(input_shape[0] / 2 ** downsampling), int(input_shape[1] / 2 ** downsampling), colors.shape[-1])
     mapping = {os.path.join(folder, filename): colors[i]
                for (i, folder) in enumerate(folders)
                for filename in os.listdir(folder)}
-    filenames = list(mapping.keys())
-    input_canals = read(filenames[0], input_shape=input_shape).shape[-1]
+
+    label_to_filename = {folder: [os.path.join(folder, filename)
+                                  for filename in os.listdir(folder)]
+                         for folder in folders}
+    [convert_link(filename) for filenames in label_to_filename.values()
+     for filename in filenames if filename.endswith('.lnk')]
+
+    # keys = [filename for filename in mapping.keys()]
+    # [convert_link(filename) for filename in mapping.keys() if filename.endswith('.lnk')]
+
     yield None
     while True:
-        selected_filenames = np.random.choice(filenames, size=batch_size)
+        batch_labels = np.random.choice(folders, size=batch_size)
+        batch_path = [np.random.choice(label_to_filename[label]) for label in batch_labels]
+        # batch_path = np.random.choice(keys, size=batch_size)
 
-        batch_input = np.zeros((batch_size, input_shape[0], input_shape[1], input_canals))
+        batch_input = np.array([read(path, input_shape=input_shape) for path in batch_path])
         batch_output = np.zeros((batch_size, output_shape[0], output_shape[1], output_shape[2]))
 
-        for i, selected_filename in enumerate(selected_filenames):
-            batch_input[i] = read(selected_filename, input_shape=input_shape)
-            batch_output[i, :, :] = mapping[selected_filename]
+        for i, input_filename in enumerate(batch_path):
+            batch_output[i, :, :] = mapping[input_filename]
 
         yield batch_input, batch_output
 
@@ -110,24 +118,33 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
 
             rotation_matrix = cv2.getRotationMatrix2D((input_shape[0] // 2, input_shape[1] // 2), angle, zoom)
             if batch_input.shape[-1] != 1:
-                batch_input[i] = cv2.warpAffine(input_, rotation_matrix, input_shape[:2])
+                batch_input[i] = cv2.warpAffine(input_, rotation_matrix, input_shape[:2][::-1])
             else:
-                batch_input[i, :, :, 0] = cv2.warpAffine(input_, rotation_matrix, input_shape[:2])
+                batch_input[i, :, :, 0] = cv2.warpAffine(input_, rotation_matrix, input_shape[:2][::-1])
 
-            if apply_on_output:
+            if apply_on_output and False:
                 if batch_output.shape[1] == 2:
                     if batch_output.shape[-1] == 1:
-                        batch_output[i, 1, :, :, 0] = cv2.warpAffine(output, rotation_matrix, output_shape[:2])
+                        batch_output[i, 1, :, :, 0] = cv2.warpAffine(output, rotation_matrix, output_shape[:2][::-1])
                     else:
-                        batch_output[i, 1] = cv2.warpAffine(output, rotation_matrix, output_shape[:2])
+                        batch_output[i, 1] = cv2.warpAffine(output, rotation_matrix, output_shape[:2][::-1])
                 else:
                     if batch_output.shape[-1] == 1:
-                        batch_output[i, :, :, 0] = cv2.warpAffine(output, rotation_matrix, output_shape[:2])
+                        batch_output[i, :, :, 0] = cv2.warpAffine(output, rotation_matrix, output_shape[:2][::-1])
                     else:
-                        batch_output[i] = cv2.warpAffine(output, rotation_matrix, output_shape[:2])
+                        batch_output[i] = cv2.warpAffine(output, rotation_matrix, output_shape[:2][::-1])
 
         if noise_function is not None:
             batch_input, batch_output = noise_function(batch_input, batch_output)
+        yield batch_input, batch_output
+
+
+def occlusion_generator(generator, color=(255, 0, 0)):
+    next(generator)
+    yield None
+    while True:
+        batch_input, batch_output = next(generator)
+        batch_input[:, :, :batch_input.shape[2] // 2] = color
         yield batch_input, batch_output
 
 
@@ -186,7 +203,7 @@ def rotsym_augmentor(generator):
         rotations = np.random.randint(0, 4, size=(batch_input.shape[0]))
         for i, ((vertical_symmetry, horizontal_symmetry), rotation) in enumerate(zip(symmetries, rotations)):
             batch_input[i] = np.rot90(batch_input[i, ::vertical_symmetry, ::vertical_symmetry], k=rotation)
-            # batch_output[i] = np.rot90(batch_output[i, ::vertical_symmetry, ::vertical_symmetry], k=rotation)
+            batch_output[i] = np.rot90(batch_output[i, ::vertical_symmetry, ::vertical_symmetry], k=rotation)
         yield batch_input, batch_output
 
 

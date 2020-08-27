@@ -3,6 +3,7 @@ import os
 import glob
 
 from Rignak_DeepLearning.data import read
+from Rignak_Misc.path import list_dir, convert_link
 
 BATCH_SIZE = 8
 INPUT_SHAPE = (512, 512, 3)
@@ -11,8 +12,8 @@ INPUT_LABEL = "input"
 OUTPUT_LABEL = "output"
 
 DUMMY_INITIAL_BATCH = 20000
-DUMMY_PROBABILITY_INCREASE = 0.05 / 2000  # incease of 5% each 2000 batchs
-DUMMY_MAXIMUM_PROBABILITY = 0.5
+DUMMY_PROBABILITY_INCREASE = 0  # 0.05 / 2000  # incease of 5% each 2000 batchs
+DUMMY_MAXIMUM_PROBABILITY = 0  # 0.5
 
 def get_heatmap_generator_with_dummy_data(dummy_probability_increase=DUMMY_PROBABILITY_INCREASE,
                                           dummy_initial_batch=DUMMY_INITIAL_BATCH,
@@ -36,6 +37,17 @@ def get_heatmap_generator_with_dummy_data(dummy_probability_increase=DUMMY_PROBA
 
         input_filenames = np.array(sorted(glob.glob(os.path.join(root, input_label, '*.*'))))
         output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.*'))))
+        for filename in input_filenames:
+            other_filename = filename.replace('.png - Raccourci.lnk', '.npy').replace(input_label, output_label)
+            if other_filename not in output_filenames:
+                print(other_filename)
+        for filename in output_filenames:
+            other_filename = filename.replace('.npy', '.png - Raccourci.lnk').replace(output_label, input_label)
+            if other_filename not in input_filenames:
+                print(other_filename)
+        print(input_label, len(input_filenames), len(output_filenames))
+        [convert_link(filename) for filename in input_filenames if filename.endswith('.lnk')]
+        [convert_link(filename) for filename in output_filenames if filename.endswith('.lnk')]
 
         dummy_input_filenames = np.array(sorted([filename for root in alternative_roots
                                                  for filename in glob.glob(os.path.join(root, generator_type,
@@ -47,8 +59,11 @@ def get_heatmap_generator_with_dummy_data(dummy_probability_increase=DUMMY_PROBA
             batch_index = np.random.randint(0, len(input_filenames), size=batch_size)
             batch_input_path = input_filenames[batch_index]
 
-            batch_dummy_index = np.random.randint(0, len(dummy_input_filenames), size=batch_size)
-            batch_dummy_path = dummy_input_filenames[batch_dummy_index]
+            if len(dummy_input_filenames):
+                batch_dummy_index = np.random.randint(0, len(dummy_input_filenames), size=batch_size)
+                batch_dummy_path = dummy_input_filenames[batch_dummy_index]
+            else:
+                batch_dummy_path = [''] * batch_size
 
             choose_dummy = np.random.random(batch_size) < function_variables['probability']
             batch_input_path = np.array([e2 if boolean else e1 for e1, e2, boolean in zip(batch_input_path,

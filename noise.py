@@ -1,6 +1,8 @@
 import numpy as np
 import scipy
 
+from skimage import exposure
+
 DEFAULT_UNIFORM_NOISE = 1.0
 DEFAULT_CATEGORISATION_NOISE = 0.2
 DEFAULT_DISABLE_PIXEL = 1 / 3
@@ -140,6 +142,23 @@ def get_random_inverse_function(args):
     return random_inverse_function
 
 
+def get_histogram_normalization(args):
+    def histogram_normalization(x, y):
+        for i, e in enumerate(x):
+            x[i] = exposure.equalize_hist(e)
+        return x, y
+
+    return histogram_normalization
+
+
+def get_normal_normalization(args):
+    def normal_normalization(x, y):
+        for i, e in enumerate(x):
+            x[i] = (e - e.mean()) / e.std()
+        return x, y
+
+    return normal_normalization
+
 def get_composition(function_names, noise_parameters):
     functions = [NOISE_FUNCTIONS[function_name](noise_parameter)
                  for function_name, noise_parameter in zip(function_names, noise_parameters)]
@@ -164,5 +183,7 @@ NOISE_FUNCTIONS = {'uniform': get_uniform_noise_function,
                    'decreasing_contacts': get_decreasing_contacts,
                    'output_uniform': get_uniform_output_noise_function,
                    "inverse": get_random_inverse_function,
+                   "histogram": get_histogram_normalization,
+                   "normalization": get_normal_normalization,
                    None: get_none_noise
                    }

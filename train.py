@@ -22,8 +22,12 @@ from keras.callbacks import ModelCheckpoint
 from Rignak_DeepLearning.data import get_dataset_roots
 from Rignak_DeepLearning.normalization import NORMALIZATION_FUNCTIONS
 from Rignak_DeepLearning.noise import get_composition
-from Rignak_DeepLearning.callbacks import HistoryCallback, AutoencoderExampleCallback, ConfusionCallback, \
-    ClassificationExampleCallback, SaveAttributes
+from Rignak_DeepLearning.callbacks import \
+    HistoryCallback, \
+    AutoencoderExampleCallback, \
+    ConfusionCallback, \
+    ClassificationExampleCallback, \
+    SaveAttributes
 from Rignak_DeepLearning.Autoencoders.flat import import_model as import_flat_model
 from Rignak_DeepLearning.Autoencoders.unet import import_model as import_unet_model
 from Rignak_DeepLearning.Categorizer.flat import import_model as import_categorizer
@@ -32,17 +36,28 @@ from Rignak_DeepLearning.Categorizer.multiscale_mosaic_categorizer import \
     import_model as import_multiscale_mosaic_categorizer
 from Rignak_DeepLearning.Categorizer.Inception import import_model_v3 as InceptionV3
 from Rignak_DeepLearning.Categorizer.masked_categorizer import import_model as import_masked_categorizer
+from Rignak_DeepLearning.Categorizer.unet_categorizer import import_model as import_unet_categorizer
+
 from Rignak_DeepLearning.BiOutput.flat import import_model as import_bimode
 from Rignak_DeepLearning.BiOutput.multiscale_autoencoder import import_model as import_multiscale_bimode
 from Rignak_DeepLearning.BiOutput.generator import generator as bimode_generator, \
     normalize_generator as bimode_normalize, augment_generator as bimode_augment
-from Rignak_DeepLearning.BiOutput.callbacks import ExampleCallback as BimodeExampleCallback
-from Rignak_DeepLearning.BiOutput.callbacks import HistoryCallback as BimodeHistoryCallback
+from Rignak_DeepLearning.BiOutput.callbacks import \
+    ExampleCallback as BimodeExampleCallback, \
+    HistoryCallback as BimodeHistoryCallback
+
 from Rignak_DeepLearning.Categorization2Segmentation.heatmap_model import import_model as import_heatmap_model
 from Rignak_DeepLearning.Categorization2Segmentation.generator import get_heatmap_generator_with_dummy_data
-from Rignak_DeepLearning.generator import autoencoder_generator, categorizer_generator, saliency_generator, \
-    thumbnail_generator as thumb_generator, normalize_generator, augment_generator, regressor_generator, \
-    rotsym_augmentor
+from Rignak_DeepLearning.generator import \
+    autoencoder_generator, \
+    categorizer_generator, \
+    saliency_generator, \
+    thumbnail_generator as thumb_generator, \
+    normalize_generator, \
+    augment_generator, \
+    regressor_generator, \
+    rotsym_augmentor, \
+    occlusion_generator
 from Rignak_DeepLearning.StyleGan.callbacks import GanRegressorExampleCallback
 from Rignak_DeepLearning.config import get_config
 
@@ -61,9 +76,12 @@ DEFAULT_SCALING = 1
 def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAULT_INPUT_SHAPE,
                    default_scaling=DEFAULT_SCALING):
     def get_saliency_generators():
-        train_generator = saliency_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
-        val_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
-        callback_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        train_generator = saliency_generator(train_folder, input_shape=input_shape, batch_size=batch_size,
+                                             downsampling=len(config[task]['CONV_LAYERS']))
+        val_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size,
+                                           downsampling=len(config[task]['CONV_LAYERS']))
+        callback_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size,
+                                                downsampling=len(config[task]['CONV_LAYERS']))
         next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
@@ -140,6 +158,7 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
                  "mosaic_categorizer": get_categorizer_generators,
                  "multiscale_mosaic_categorizer": get_categorizer_generators,
                  "masked_categorizer": get_categorizer_generators,
+                 "unet_categorizer": get_categorizer_generators,
                  "style_transfer": get_style_transfer_generators,
                  "bimode": get_bimode_generators,
                  "multiscale_bimode": get_bimode_generators,
@@ -159,6 +178,10 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
         new_callback_generator = normalize_generator(
             augment_generator(callback_generator, noise_function=noise_function, apply_on_output=True),
             normalizer, apply_on_output=True)
+
+        # new_train_generator = rotsym_augmentor(new_train_generator)
+        # new_val_generator = rotsym_augmentor(new_val_generator)
+        # new_callback_generator = rotsym_augmentor(new_callback_generator)
 
         return new_train_generator, new_val_generator, new_callback_generator
 
@@ -201,6 +224,7 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
                  "mosaic_categorizer": get_categorizer_augmentation,
                  "multiscale_mosaic_categorizer": get_categorizer_augmentation,
                  "masked_categorizer": get_categorizer_augmentation,
+                 "unet_categorizer": get_categorizer_augmentation,
                  "bimode": get_bimode_augmentation,
                  "multiscale_bimode": get_bimode_augmentation,
                  "regressor": get_regressor_augmentation,
@@ -223,6 +247,9 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
     def get_autoencoder_model():
         if task == 'flat_autoencoder':
             model = import_flat_model(name=name, config=config[task], load=load)
+        elif task == "unet_categorizer":
+            model = import_unet_categorizer(name=name, config=config[task], load=load)
+            model.labels = labels
         else:
             model = import_unet_model(name=name, config=config[task], load=load)
         model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
@@ -298,6 +325,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
                  "heatmap": get_heatmap_model,
                  "flat_autoencoder": get_autoencoder_model,
                  "style_transfer": get_autoencoder_model,
+                 "unet_categorizer": get_autoencoder_model,
                  "categorizer": get_categorizer_model,
                  "mosaic_categorizer": get_mosaic_categorizer_model,
                  "multiscale_mosaic_categorizer": get_multiscale_mosaic_categorizer_model,
@@ -362,6 +390,7 @@ def get_callbacks(config, task, model, callback_generator):
                  "multiscale_mosaic_categorizer": get_categorizer_callbacks,
                  "masked_categorizer": get_categorizer_callbacks,
                  "inceptionV3": get_categorizer_callbacks,
+                 "unet_categorizer": get_categorizer_callbacks,
                  "bimode": get_bimode_callbacks,
                  "multiscale_bimode": get_bimode_callbacks,
                  "regressor": get_regressor_callback,

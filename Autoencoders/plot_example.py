@@ -20,7 +20,7 @@ def plot_less_than_three_canals(input_, prediction, groundtruth, labels, denorma
             plt.title(labels[0])
 
         plt.subplot(line_number, col_number, i + 1 + col_number)
-        imshow(prediction[i], denormalizer=denormalizer, vmin=0, vmax=255)
+        imshow(prediction[i], denormalizer=denormalizer, vmin=0, vmax=255, cmap='hot')
         if not i and labels is not None:
             plt.title(labels[1])
 
@@ -55,8 +55,8 @@ def plot_more_than_three_canals(input_, prediction, groundtruth, labels, denorma
             plt.subplot(line_number, col_number, i * col_number + canal + 4)
             imshow(pred_thumb[:, :, canal], cmap=COLORMAPS[canal], denormalizer=denormalizer)
             plt.colorbar()
-            if not i and labels is not None:
-                plt.title(f"Prediction: {labels[2 + canal]}")
+            if not i and labels is not None and len(labels) > 3 + canal:
+                plt.title(f"Prediction: {labels[3 + canal]}")
 
 
 def plot_example(input_, prediction, groundtruth=None, max_thumbs=MAX_THUMBS, labels=None, denormalizer=None):

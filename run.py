@@ -15,14 +15,19 @@ def load_model(model_filename, models_folder=MODELS_FOLDER):
     return keras_load_model(os.path.join(models_folder, model_filename))
 
 
-def run_batch(array, model, batch_size=BATCH_SIZE, normalizer=None):
+def run_batch(array, model, batch_size=BATCH_SIZE, normalizer=None, use_tqdm=False):
     output_shape = model.layers[-1].output_shape[-1]
     output = np.zeros((array.shape[0], output_shape))
-    for batch_i in tqdm(range(array.shape[0] // batch_size + 1)):
+
+    batch_range = range(array.shape[0] // batch_size + 1)
+    if use_tqdm:
+        batch_range = tqdm.tqdm(batch_range)
+    for batch_i in batch_range:
         batch = array[batch_i * batch_size:(batch_i + 1) * batch_size]
         if normalizer is not None:
             batch = normalizer(batch)
-        output[batch_i * batch_size:(batch_i + 1) * batch_size] = model.predict(batch)
+        if batch_i * batch_size != output.shape[0]:
+            output[batch_i * batch_size:(batch_i + 1) * batch_size] = model.predict(batch)
     return output
 
 

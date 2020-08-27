@@ -43,10 +43,8 @@
       3
     ],
     "CONV_LAYERS": [
-      4,
-      8,
-      16,
-      32
+      32,
+      128
     ]
   },
   "flat_autoencoder": {
@@ -224,5 +222,21 @@
       64
     ],
     "OUTPUT_CANALS": 1
+  },
+  "unet_categorizer": {
+    "TASK": "unet_categorizer",
+    "INPUT_SHAPE": [
+      256,
+      256,
+      3
+    ],
+    "CONV_LAYERS": [
+      16,
+      32,
+      64,
+      128
+    ],
+    "OUTPUT_CANALS": 10,
+    "BLACK_DEPTH": 2
   }
 }

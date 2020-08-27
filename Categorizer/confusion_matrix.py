@@ -38,14 +38,15 @@ def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
     return confusion_matrix
 
 
-def plot_confusion_matrix(confusion_matrix, labels=None, clustering=False, figsize=(18, 9), fmt='.2f'):
+def plot_confusion_matrix(confusion_matrix, labels=None, clustering=False, figsize=(18, 9), fmt='.2f', ax=None):
     if len(labels) == 2:
         clustering = False
     if clustering:
         confusion_matrix, labels, lines = create_clusters(confusion_matrix, labels)
 
-    plt.figure(figsize=figsize)
-    ax = plt.subplot()
+    if ax is None:
+        plt.figure(figsize=figsize)
+        ax = plt.subplot()
 
     sns.heatmap(confusion_matrix[::-1], annot=True, ax=ax, vmin=0, vmax=1, fmt=fmt)
 

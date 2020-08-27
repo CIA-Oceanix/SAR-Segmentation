@@ -2,7 +2,7 @@ import sys
 import os
 
 from keras.models import Model, load_model
-from keras.layers import Input, Conv2D, Dropout, concatenate
+from keras.layers import Input, Conv2D, Dropout, concatenate, UpSampling2D
 from keras_radam.training import RAdamOptimizer
 from keras.optimizers import Adam
 import runai.ga.keras
@@ -23,7 +23,7 @@ CONFIG = get_config()[CONFIG_KEY]
 DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 DROPOUT = 0.
-GRADIENT_ACCUMULATION = 32
+GRADIENT_ACCUMULATION = 4
 
 
 def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
@@ -36,10 +36,11 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     conv_layers = config['CONV_LAYERS']
     input_shape = config.get('INPUT_SHAPE', (256, 256, 3))
     activation = config.get('ACTIVATION', 'relu')
-    last_activation = config.get('ACTIVATION', 'sigmoid')
+    last_activation = config.get('LAST_ACTIVATION', 'sigmoid')
     output_canals = config.get('OUTPUT_CANALS', input_shape[-1])
     block_depth = config.get('BLOCK_DEPTH', 3)
     loss = config.get('LOSS', 'mse')
+    learning_rate = config.get('LEARNING_RATE', learning_rate)
 
     if loss == 'DICE':
         loss = dice_coef_loss
@@ -59,10 +60,10 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
         # encoder
         for neurons in conv_layers:
             if block is None:
-                block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=False,
+                block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=True,
                                                 batch_normalization=True, block_depth=block_depth)
             else:
-                block, conv = convolution_block(block, neurons, activation=activation, maxpool=False,
+                block, conv = convolution_block(block, neurons, activation=activation, maxpool=True,
                                                 batch_normalization=True, block_depth=block_depth)
             convs.append(conv)
 
@@ -70,17 +71,14 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
         block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False,
                                         batch_normalization=True, block_depth=block_depth)
 
-        # decoder
-        for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
-            previous_conv = Dropout(dropout)(previous_conv)
-            block = concatenate([block, previous_conv], axis=3)
-            block, _ = convolution_block(block, neurons, activation=activation, maxpool=False)
+        block = Conv2D(output_canals, (1, 1), activation=last_activation, name='output_unupsampled', use_bias=False)(
+            block)
 
-    outputs = Conv2D(output_canals, (1, 1), activation=last_activation, name='output')(block)
+    outputs = block
 
     optimizer = RAdamOptimizer(learning_rate)
-    optimizer = Adam(learning_rate)
-    optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
+    # optimizer = Adam(learning_rate)
+    # optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
 
     model = Model(inputs=[inputs], outputs=[outputs])
     model.compile(optimizer=optimizer, loss=loss)
