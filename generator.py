@@ -52,8 +52,10 @@ def categorizer_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
         yield batch_input, batch_output
 
 
-def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE, downsampling=0):
-    folders = list_dir(root)
+def saliency_generator(root, input_shape=INPUT_SHAPE, batch_size=BATCH_SIZE, downsampling=0, folders=None):
+    print('Will use the folders:', folders, type(folders))
+    folders = list_dir(root) if folders is None else [os.path.join(root, folder) for folder in
+                                                      folders[1:-1].split(', ')]
     if len(folders) == 2:
         colors = np.array([[0], [1]])
     elif len(folders) > 2:

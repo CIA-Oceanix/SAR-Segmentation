@@ -53,8 +53,8 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
             layer.trainable = False
 
     optimizer = RAdamOptimizer(learning_rate)
-    optimizer = Adam(learning_rate)
-    optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
+    # optimizer = Adam(learning_rate)
+    # optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
     
     if class_weight is not None:
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)

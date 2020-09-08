@@ -16,7 +16,7 @@ WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
 LOAD = False
 
-LEARNING_RATE = 10 ** -4
+LEARNING_RATE = 10 ** -5
 
 CONFIG_KEY = 'saliency'
 CONFIG = get_config()[CONFIG_KEY]

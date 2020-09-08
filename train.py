@@ -77,11 +77,14 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
                    default_scaling=DEFAULT_SCALING):
     def get_saliency_generators():
         train_generator = saliency_generator(train_folder, input_shape=input_shape, batch_size=batch_size,
-                                             downsampling=len(config[task]['CONV_LAYERS']))
+                                             downsampling=len(config[task]['CONV_LAYERS']),
+                                             folders=config[task].get('LABELS'))
         val_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size,
-                                           downsampling=len(config[task]['CONV_LAYERS']))
+                                           downsampling=len(config[task]['CONV_LAYERS']),
+                                           folders=config[task].get('LABELS'))
         callback_generator = saliency_generator(val_folder, input_shape=input_shape, batch_size=batch_size,
-                                                downsampling=len(config[task]['CONV_LAYERS']))
+                                                downsampling=len(config[task]['CONV_LAYERS']),
+                                                folders=config[task].get('LABELS'))
         next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
@@ -315,7 +318,10 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         model.class_weight = None
         return model
 
-    path_labels = list_dir(train_folder)
+    folders = config[task].get('LABELS')
+    path_labels = list_dir(train_folder) if folders is None else [os.path.join(train_folder, folder) for folder in
+                                                                  folders[1:-1].split(', ')]
+    # path_labels = list_dir(train_folder)
     labels = [os.path.split(label)[-1] for label in path_labels]
     class_weight = [len(os.listdir(folder)) for folder in path_labels]
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)

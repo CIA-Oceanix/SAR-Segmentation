@@ -38,7 +38,7 @@ def read(filename, input_shape=None):
     try:
         if os.path.splitext(filename)[-1] == '.npy':
             with open(filename, 'rb') as numpy_filename:
-                im = np.load(numpy_filename)
+                im = np.load(numpy_filename, allow_pickle=True)
         else:
             with PIL.Image.open(filename) as im:
                 im = np.array(im)
