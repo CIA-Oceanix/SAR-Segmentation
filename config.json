@@ -14,8 +14,8 @@
     ],
     "OUTPUT_CANALS": 3
   },
-  "heatmap": {
-    "TASK": "heatmap",
+  "segmenter": {
+    "TASK": "segmenter",
     "INPUT_SHAPE": [
       512,
       512,
@@ -61,24 +61,6 @@
       64
     ]
   },
-  "mnist": {
-    "TASK": "categorizer",
-    "INPUT_SHAPE": [
-      32,
-      32,
-      3
-    ],
-    "CONV_LAYERS": [
-      4,
-      8,
-      16,
-      32
-    ],
-    "DENSE_LAYERS": [
-      32,
-      16
-    ]
-  },
   "categorizer": {
     "TASK": "categorizer",
     "INPUT_SHAPE": [
@@ -97,93 +79,6 @@
       256,
       256
     ]
-  },
-  "style_transfer": {
-    "TASK": "style_transfer",
-    "INPUT_SHAPE": [
-      256,
-      256,
-      3
-    ],
-    "CONV_LAYERS": [
-      8,
-      16,
-      32,
-      64
-    ],
-    "OUTPUT_CANALS": 1
-  },
-  "speech_recognition": {
-    "TASK": "categorizer",
-    "INPUT_SHAPE": [
-      128,
-      128,
-      1
-    ],
-    "CONV_LAYERS": [
-      8,
-      16,
-      16,
-      32
-    ]
-  },
-  "bimode": {
-    "TASK": "bimode",
-    "INPUT_SHAPE": [
-      512,
-      512,
-      1
-    ],
-    "CONV_LAYERS": [
-      32,
-      64,
-      128,
-      256,
-      256,
-      256,
-      256
-    ],
-    "DENSE_LAYERS": [
-      64
-    ],
-    "OUTPUT_CANALS": 1
-  },
-  "multiscale_bimode": {
-    "TASK": "multiscale_bimode",
-    "INPUT_SHAPE": [
-      128,
-      128,
-      3
-    ],
-    "CONV_LAYERS": [
-      32,
-      64,
-      64,
-      128
-    ],
-    "LATENT_SPACE": [
-      [
-        8,
-        8,
-        4
-      ],
-      [
-        8,
-        8,
-        8
-      ],
-      [
-        8,
-        8,
-        8
-      ],
-      [
-        8,
-        8,
-        16
-      ]
-    ],
-    "OUTPUT_CANALS": 3
   },
   "inceptionV3": {
     "TASK": "inceptionV3",
@@ -205,23 +100,6 @@
     "LAYER_NUMBER": 18,
     "OUTPUT_CANALS": 512,
     "GAN_FILENAME": false
-  },
-  "masked_categorizer": {
-    "TASK": "masked_categorizer",
-    "MODALITY": "mean",
-    "IMAGENET": false,
-    "INPUT_SHAPE": [
-      256,
-      256,
-      1
-    ],
-    "CONV_LAYERS": [
-      8,
-      16,
-      32,
-      64
-    ],
-    "OUTPUT_CANALS": 1
   },
   "unet_categorizer": {
     "TASK": "unet_categorizer",

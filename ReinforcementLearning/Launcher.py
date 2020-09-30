@@ -1,7 +1,7 @@
 import sys
 import pygame
 
-from Rignak_DeepLearning.Categorizer.flat import import_model
+from Rignak_DeepLearning.Image_to_Class.flat import import_model
 from Rignak_DeepLearning.ReinforcementLearning.ReinforcementLearning import train
 
 """

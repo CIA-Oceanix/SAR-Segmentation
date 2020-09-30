@@ -27,7 +27,7 @@ GRADIENT_ACCUMULATION = 4
 
 
 def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
-                 name=DEFAULT_NAME, config=CONFIG, dropout=DROPOUT, gradient_accumulation=GRADIENT_ACCUMULATION):
+                 name=DEFAULT_NAME, config=CONFIG, gradient_accumulation=GRADIENT_ACCUMULATION):
     weight_filename = os.path.join(weight_root, f"{name}.h5")
     summary_filename = os.path.join(summary_root, f"{name}.txt")
     convs = []

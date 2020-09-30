@@ -8,7 +8,7 @@ from keras.optimizers import Adam
 from keras_radam.training import RAdamOptimizer
 import runai.ga.keras
 
-from Rignak_DeepLearning.Categorizer.flat import WEIGHT_ROOT, SUMMARY_ROOT
+from Rignak_DeepLearning.Image_to_Class.flat import WEIGHT_ROOT, SUMMARY_ROOT
 
 from Rignak_DeepLearning.loss import get_polarisation_metric
 
@@ -55,7 +55,7 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
     optimizer = RAdamOptimizer(learning_rate)
     # optimizer = Adam(learning_rate)
     # optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
-    
+
     if class_weight is not None:
         model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     else:

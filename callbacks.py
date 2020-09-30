@@ -9,9 +9,9 @@ import matplotlib.pyplot as plt
 from keras.callbacks import Callback
 
 from Rignak_Misc.path import get_local_file
-from Rignak_DeepLearning.Autoencoders.plot_example import plot_example as plot_autoencoder_example
-from Rignak_DeepLearning.Categorizer.plot_example import plot_example as plot_categorizer_example
-from Rignak_DeepLearning.Categorizer.confusion_matrix import compute_confusion_matrix, plot_confusion_matrix
+from Rignak_DeepLearning.Image_to_Image.plot_example import plot_example as plot_autoencoder_example
+from Rignak_DeepLearning.Image_to_Class.plot_example import plot_example as plot_categorizer_example
+from Rignak_DeepLearning.Image_to_Class.confusion_matrix import compute_confusion_matrix, plot_confusion_matrix
 
 HISTORY_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'history'))
 EXAMPLE_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'example'))

@@ -39,9 +39,11 @@ def read(filename, input_shape=None):
         if os.path.splitext(filename)[-1] == '.npy':
             with open(filename, 'rb') as numpy_filename:
                 im = np.load(numpy_filename, allow_pickle=True)
+            npy = False
         else:
             with PIL.Image.open(filename) as im:
                 im = np.array(im)
+            npy = True
         if input_shape is not None and (im.shape[0] != input_shape[0] or im.shape[1] != input_shape[1]):
             im = resize(im, input_shape[:2])
         if len(im.shape) == 2:
@@ -53,7 +55,7 @@ def read(filename, input_shape=None):
             im = np.expand_dims(im, axis=-1)
         elif im.shape[-1] == 4 and input_shape[-1] == 3:
             im = im[:, :, :3]
-        if im.max() > 1:
+        if im.max() > 1 and not npy:
             im = im / 255
     except Exception as e:
         print('exists:', os.path.exists(filename))
@@ -63,8 +65,8 @@ def read(filename, input_shape=None):
 
 
 def get_dataset_roots(task, dataset='.'):
-    train_root = os.path.join('E:', 'datasets', dataset, 'train')
-    val_root = os.path.join('E:', 'datasets', dataset, 'val')
+    train_root = os.path.join('E:\\', 'datasets', dataset, 'train')
+    val_root = os.path.join('E:\\', 'datasets', dataset, 'val')
 
     # train_root = os.path.join('..', '..', '..', 'data', dataset)
     # val_root = os.path.join('..', '..', '..', 'data', dataset)
