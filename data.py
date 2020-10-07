@@ -1,4 +1,5 @@
 import os
+import sys
 import numpy as np
 from PIL import Image
 from skimage.transform import resize
@@ -11,6 +12,10 @@ from keras.preprocessing import image as image_utils
 from Rignak_Misc.path import convert_link
 
 CANALS = 3
+
+print('------------')
+print(sys.argv)
+print('------------')
 
 
 def thumbnail(filename, size):
@@ -45,7 +50,7 @@ def read(filename, input_shape=None):
                 im = np.array(im)
             npy = True
         if input_shape is not None and (im.shape[0] != input_shape[0] or im.shape[1] != input_shape[1]):
-            im = resize(im, input_shape[:2])
+            im = resize(im, input_shape[:2], anti_aliasing=True)
         if len(im.shape) == 2:
             im = np.expand_dims(im, axis=-1)
         if im.shape[-1] == 1 and input_shape[-1] == 3:
@@ -64,9 +69,22 @@ def read(filename, input_shape=None):
     return im
 
 
-def get_dataset_roots(task, dataset='.'):
-    train_root = os.path.join('E:\\', 'datasets', dataset, 'train')
-    val_root = os.path.join('E:\\', 'datasets', dataset, 'val')
+if '--CACHE=True' in sys.argv:
+    print('Be careful: you are using the RAM to store the dataset')
+    hidden_read = read
+
+
+    @functools.lru_cache(maxsize=50000)
+    def cached_read(filename, input_shape=None):
+        return hidden_read(filename, input_shape)
+
+
+    read = cached_read
+
+
+def get_dataset_roots(dataset='.', root='E:\\\\datasets'):
+    train_root = os.path.join(root, dataset, 'train')
+    val_root = os.path.join(root, dataset, 'val')
 
     # train_root = os.path.join('..', '..', '..', 'data', dataset)
     # val_root = os.path.join('..', '..', '..', 'data', dataset)

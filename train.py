@@ -29,7 +29,7 @@ from Rignak_DeepLearning.callbacks import \
     ClassificationExampleCallback, \
     SaveAttributes
 
-from Rignak_DeepLearning.generator import normalize_generator, augment_generator
+from Rignak_DeepLearning.generator import normalize_generator, augment_generator, rotsym_augmentor
 from Rignak_DeepLearning.config import get_config
 
 if task in ("saliency", "autoencoder", "segmenter", "flat_autoencoder"):
@@ -58,9 +58,11 @@ EPOCHS = 1000
 INITIAL_EPOCH = 0
 
 DEFAULT_INPUT_SHAPE = (256, 256, 3)
+ROOT = 'E:\\\\datasets'
 
 
-def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAULT_INPUT_SHAPE):
+def get_generators(config, task, dataset, batch_size, train_folder, val_folder,
+                   default_input_shape=DEFAULT_INPUT_SHAPE):
     def get_saliency_generators():
         kwargs = {"input_shape": input_shape, "batch_size": batch_size, "output_shape": output_shape,
                   "folders": config[task].get('LABELS')}
@@ -109,8 +111,6 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
     output_shape = config[task].get('OUTPUT_SHAPE', input_shape)
 
-    train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
-
     functions = {"saliency": get_saliency_generators,
                  "autoencoder": get_autoencoder_generators,
                  "segmenter": get_segmenter_generators,
@@ -127,31 +127,35 @@ def get_generators(config, task, dataset, batch_size, default_input_shape=DEFAUL
 
 def get_data_augmentation(config, task, train_generator, val_generator, callback_generator):
     def get_im2im_data_augmentation():
-        new_train_generator = augment_generator(train_generator, noise_function=noise_function, apply_on_output=True)
+        kwargs = {"noise_function": noise_function, "apply_on_output": True, "zoom_factor": zoom_factor,
+                  "rotation": rotation}
+
+        new_train_generator = augment_generator(train_generator, **kwargs)
         new_train_generator = normalize_generator(new_train_generator, normalizer, apply_on_output=True)
 
-        new_val_generator = augment_generator(val_generator, noise_function=noise_function, apply_on_output=True)
+        new_val_generator = augment_generator(val_generator, **kwargs)
         new_val_generator = normalize_generator(new_val_generator, normalizer, apply_on_output=True)
 
-        new_callback_generator = augment_generator(callback_generator, noise_function=noise_function,
-                                                   apply_on_output=True)
+        new_callback_generator = augment_generator(callback_generator, **kwargs)
         new_callback_generator = normalize_generator(new_callback_generator, normalizer, apply_on_output=True)
 
-        # new_train_generator = rotsym_augmentor(new_train_generator)
-        # new_val_generator = rotsym_augmentor(new_val_generator)
-        # new_callback_generator = rotsym_augmentor(new_callback_generator)
+        new_train_generator = rotsym_augmentor(new_train_generator)
+        new_val_generator = rotsym_augmentor(new_val_generator)
+        new_callback_generator = rotsym_augmentor(new_callback_generator)
 
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_categorizer_augmentation():
-        new_train_generator = augment_generator(train_generator, noise_function=noise_function, apply_on_output=False)
+        kwargs = {"noise_function": noise_function, "apply_on_output": False, "zoom_factor": zoom_factor,
+                  "rotation": rotation}
+
+        new_train_generator = augment_generator(train_generator, **kwargs)
         new_train_generator = normalize_generator(new_train_generator, normalizer, apply_on_output=False)
 
-        new_val_generator = augment_generator(val_generator, noise_function=noise_function, apply_on_output=False)
+        new_val_generator = augment_generator(val_generator, **kwargs)
         new_val_generator = normalize_generator(new_val_generator, normalizer, apply_on_output=False)
 
-        new_callback_generator = augment_generator(callback_generator, noise_function=noise_function,
-                                                   apply_on_output=False)
+        new_callback_generator = augment_generator(callback_generator, **kwargs)
         new_callback_generator = normalize_generator(new_callback_generator, normalizer, apply_on_output=False)
 
         return new_train_generator, new_val_generator, new_callback_generator
@@ -162,6 +166,8 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
     normalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'none')]()[0]
     noise_function = get_composition(config[task].get('NOISE', [None]),
                                      config[task].get('NOISE_PARAMETERS', (())))
+    zoom_factor = config[task].get('ZOOM', 0)
+    rotation = config[task].get('ROTATION', 0)
 
     functions = {"style_transfer": get_im2im_data_augmentation,
                  "saliency": get_im2im_data_augmentation,
@@ -268,6 +274,7 @@ def get_callbacks(config, task, model, callback_generator):
 
 def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
          training_steps=TRAINING_STEPS, validation_steps=VALIDATION_STEPS, initial_epoch=INITIAL_EPOCH,
+         root=ROOT,
          **kwargs):
     config = get_config()
     if task not in config:
@@ -279,10 +286,12 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
     config[task]['VALIDATION_STEPS'] = validation_steps
     config[task]['EPOCHS'] = epochs
     config[task]['BATCH_SIZE'] = batch_size
+    config[task]['sys.argv'] = ' '.join(sys.argv)
     task = config[task]['TASK']
 
-    train_folder, val_folder = get_dataset_roots(task, dataset=dataset)
-    train_generator, val_generator, callback_generator, train_dir = get_generators(config, task, dataset, batch_size)
+    train_folder, val_folder = get_dataset_roots(dataset=dataset, root=root)
+    train_generator, val_generator, callback_generator, train_dir = get_generators(config, task, dataset, batch_size,
+                                                                                   train_folder, val_folder)
     train_generator, val_generator, callback_generator = get_data_augmentation(config, task, train_generator,
                                                                                val_generator, callback_generator)
     name = config[task].get('NAME', f'{dataset}_{task}')
