@@ -1,3 +1,4 @@
+import sys
 import numpy as np
 import imutils
 from functools import lru_cache
@@ -7,24 +8,32 @@ from keras.applications.vgg16 import VGG16
 from keras.models import Model, load_model
 from keras import backend as K
 
+CLASS_WEIGHTS = None
+for arg in sys.argv:
+    if arg.startswith('--CLASS_WEIGHTS'):
+        CLASS_WEIGHTS = np.array(eval(arg.split('=')[-1]), dtype=float)
+        CLASS_WEIGHTS = CLASS_WEIGHTS / sum(CLASS_WEIGHTS) * len(CLASS_WEIGHTS)
 
-def weighted_binary_crossentropy(y_true, y_pred, smooth=0.01):
-    # y_true = K.expand_dims(K.flatten(y_true))
-    # y_pred = K.expand_dims(K.flatten(y_pred))
+
+def weighted_binary_crossentropy(y_true, y_pred, smooth=0.01, class_weights=CLASS_WEIGHTS):
     size = K.sum(y_pred) + K.sum(1 - y_pred)
     weights = 1 - (K.sum(y_true) / size)
     loss = - weights * y_true * K.log(y_pred + smooth) - (1 - weights) * (1 - y_true) * K.log(1 - y_pred + smooth)
-    # loss = loss * K.variable([25., 6.5, 170., 6.7, 3.7, 50., 1., 29., 0, 3.7])
+    if CLASS_WEIGHTS is not None:
+        loss = loss * K.variable(class_weights)
+        # loss = loss * K.variable([25., 6.5, 170., 6.7, 3.7, 50., 1., 29., 0, 3.7])
     return loss
 
 
-def dice_coef_loss(y_true, y_pred):
+def dice_coef_loss(y_true, y_pred, class_weights=CLASS_WEIGHTS):
     def dice_coef(y_true, y_pred, smooth=.01):
-        numerator = 2 * K.control_flow_ops.math_ops.reduce_sum(y_true * y_pred, axis=-1)
-        denominator = K.control_flow_ops.math_ops.reduce_sum(y_true + y_pred, axis=-1)
-        return (numerator) / (denominator + smooth)
+        loss = 2 * y_true * y_pred / (y_true + y_pred + smooth)
+        return loss
 
-    return 1 - dice_coef(y_true, y_pred)
+    loss = 1 - dice_coef(y_true, y_pred)
+    if CLASS_WEIGHTS is not None:
+        loss = loss * K.variable(class_weights)
+    return loss
 
 
 def encode(latent_vector):

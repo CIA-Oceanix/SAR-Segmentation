@@ -32,6 +32,8 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
                 input_ = input_[:, ::-1]
                 if apply_on_output:
                     output = output[:, ::-1]
+            if np.random.random() > 0.8:
+                input_ = 1 - input_
 
             input_rotation_matrix = cv2.getRotationMatrix2D((input_shape[0] // 2, input_shape[1] // 2), angle, zoom)
             if batch_input.shape[-1] != 1:

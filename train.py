@@ -27,6 +27,7 @@ from Rignak_DeepLearning.callbacks import \
     AutoencoderExampleCallback, \
     ConfusionCallback, \
     ClassificationExampleCallback, \
+    RegressorCallback, \
     SaveAttributes
 
 from Rignak_DeepLearning.generator import normalize_generator, augment_generator, rotsym_augmentor
@@ -88,9 +89,12 @@ def get_generators(config, task, dataset, batch_size, train_folder, val_folder,
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_regressor_generators():
-        train_generator = regressor_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
-        val_generator = regressor_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
-        callback_generator = regressor_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        attributes = config[task].get('ATTRIBUTES')
+        assert attributes, 'No --ATTRIBUTES were passed'
+        kwargs = {"input_shape": input_shape, "batch_size": batch_size}
+        train_generator = regressor_generator(train_folder, attributes, **kwargs)
+        val_generator = regressor_generator(val_folder, attributes, **kwargs)
+        callback_generator = regressor_generator(val_folder, attributes, **kwargs)
         next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
@@ -192,33 +196,37 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         else:
             model = import_unet_model(name=name, config=config[task], load=load)
         model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
-        model.class_weight = None
         return model
 
     def get_categorizer_model():
         if task == 'inceptionV3':
             model = InceptionV3(input_shape, len(labels), name, load=load,
-                                imagenet=config[task].get('IMAGENET', False), class_weight=class_weight,
+                                imagenet=config[task].get('IMAGENET', False),
                                 last_activation=config[task].get('LAST_ACTIVATION', 'softmax'))
         else:
-            model = import_categorizer(len(labels), config=config[task], name=name, load=load,
-                                       class_weight=class_weight)
+            model = import_categorizer(len(labels), config=config[task], name=name, load=load)
         model.labels = labels
         return model
 
     def get_regressor_model():
-        model = InceptionV3(input_shape, output_canals, name, load=load, imagenet=config[task].get('IMAGENET', False),
-                            last_activation='linear', loss='mse', metrics=[])
-        model.class_weight = None
+        attributes = config[task].get('ATTRIBUTES')
+        if isinstance(attributes, str):
+            while ' ' in attributes:
+                attributes = attributes.replace(' ', '')
+            if attributes.startswith('(') and attributes.endswith(')'):
+                attributes = attributes[1:-1]
+            attributes = attributes.split(',')
+
+        model = InceptionV3(input_shape, len(attributes), name, load=load, imagenet=config[task].get('IMAGENET', False),
+                            last_activation='tanh', loss='mse', metrics=[], last_dense=True)
+        model.labels = attributes
         return model
 
     folders = config[task].get('LABELS')
     path_labels = list_dir(train_folder) if folders is None else [os.path.join(train_folder, folder) for folder in
                                                                   folders[1:-1].split(', ')]
     labels = [os.path.split(label)[-1] for label in path_labels]
-    class_weight = [len(os.listdir(folder)) for folder in path_labels]
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
-    output_canals = config[task].get('OUTPUT_CANALS')
     functions = {"saliency": get_autoencoder_model,
                  "autoencoder": get_autoencoder_model,
                  "segmenter": get_autoencoder_model,
@@ -251,13 +259,15 @@ def get_callbacks(config, task, model, callback_generator):
     def get_regressor_callback():
         callbacks = [SaveAttributes(callback_generator, config[task]),
                      ModelCheckpoint(model.weight_filename, save_best_only=False),
-                     HistoryCallback(batch_size, training_steps)
+                     HistoryCallback(batch_size, training_steps),
+                     RegressorCallback(callback_generator, validation_steps)
                      ]
         return callbacks
 
     denormalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'intensity')]()[1]
     batch_size = config[task].get('BATCH_SIZE')
     training_steps = config[task].get('TRAINING_STEPS')
+    validation_steps = config[task].get('VALIDATION_STEPS')
 
     functions = {"saliency": get_im2im_callbacks,
                  "autoencoder": get_im2im_callbacks,

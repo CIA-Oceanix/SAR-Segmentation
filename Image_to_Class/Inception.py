@@ -28,7 +28,7 @@ GRADIENT_ACCUMULATION = 8
 
 def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
                     imagenet=IMAGENET, loss=DEFAULT_LOSS, metrics=DEFAULT_METRICS, last_activation=LAST_ACTIVATION,
-                    class_weight=None, learning_rate=LEARNING_RATE, gradient_accumulation=GRADIENT_ACCUMULATION):
+                    learning_rate=LEARNING_RATE, gradient_accumulation=GRADIENT_ACCUMULATION, last_dense=False):
     if imagenet:
         print('Will load imagenet weights')
         weights = "imagenet"
@@ -45,6 +45,8 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
 
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
+    if last_dense:
+        x = Dense(128, activation='relu')(x)
     x = Dense(output_shape, activation=last_activation)(x)
     model = Model(img_input, outputs=x)
 
@@ -56,15 +58,11 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
     # optimizer = Adam(learning_rate)
     # optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
 
-    if class_weight is not None:
-        model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
-    else:
-        model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     model.name = name
     model.weight_filename = os.path.join(weight_root, f"{name}.h5")
     model.summary_filename = os.path.join(summary_root, f"{name}.txt")
-    model.class_weight = class_weight
 
     if load:
         print('load weights')

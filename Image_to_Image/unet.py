@@ -14,7 +14,7 @@ from Rignak_DeepLearning.loss import dice_coef_loss, weighted_binary_crossentrop
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
 LOAD = False
-LEARNING_RATE = 10 ** -4
+LEARNING_RATE = 10 ** -5
 
 CONFIG_KEY = 'segmenter'
 CONFIG = get_config()[CONFIG_KEY]
@@ -28,6 +28,7 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     convs = []
     block = None
 
+    learning_rate = config.get('LEARNING_RATE', learning_rate)
     batch_normalization = config.get('BATCH_NORMALIZATION', False)
     conv_layers = config['CONV_LAYERS']
     input_shape = config.get('INPUT_SHAPE', (512, 512, 3))

@@ -1,6 +1,7 @@
 import numpy as np
 import os
 import glob
+import json
 
 from Rignak_DeepLearning.data import read
 from Rignak_Misc.path import list_dir, convert_link
@@ -36,16 +37,52 @@ def categorizer_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SH
         yield batch_input, batch_output
 
 
-def regressor_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
-    input_filenames = np.array(glob.glob(os.path.join(root, '*', '*.*')) + glob.glob(os.path.join(root, '*.*')))
-    output_filenames = np.array([os.path.splitext(filename)[0] + ".npy" for filename in input_filenames])
+def regressor_base_generator(root, attributes, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
+    if isinstance(attributes, str):
+        while ' ' in attributes:
+            attributes = attributes.replace(' ', '')
+        if attributes.startswith('(') and attributes.endswith(')'):
+            attributes = attributes[1:-1]
+        attributes = attributes.split(',')
+
+    filenames = np.array(sorted(glob.glob(os.path.join(root, '*.*'))))
+    with open(os.path.join(os.path.split(root)[0], 'output.json')) as json_file:
+        data = json.load(json_file)
+
+    checked_filenames = []
+    for filename in filenames:
+        if filename.endswith('.lnk'):
+            filename = convert_link(filename)
+        if os.path.split(filename)[-1] not in data:
+            print(filename, os.path.split(filename)[-1])
+        if all([os.path.split(filename)[-1] in data
+                and attribute in data[os.path.split(filename)[-1]]
+                and not np.isnan(data[os.path.split(filename)[-1]][attribute])
+                for attribute in attributes]):
+            checked_filenames.append(filename)
+    filenames = np.array(checked_filenames)
+
+    means = np.mean([[data[os.path.split(filename)[-1]][attribute]
+                      for attribute in attributes]
+                     for filename in filenames], axis=0)
+    stds = np.std([[data[os.path.split(filename)[-1]][attribute]
+                    for attribute in attributes]
+                   for filename in filenames], axis=0)
+
+    print(f'The attributes were defined for {len(filenames)} files')
+    print('MEANS:', means)
+    print('STDS:', stds)
 
     yield None
     while True:
-        filenames_index = np.random.randint(0, len(input_filenames), size=batch_size)
+        filenames_index = np.random.randint(0, len(filenames), size=batch_size)
 
-        batch_input = np.array([read(filename, input_shape) for filename in input_filenames[filenames_index]])
-        batch_output = np.array([np.load(filename)[0] for filename in output_filenames[filenames_index]])
+        batch_filenames = filenames[filenames_index]
+        batch_input = np.array([read(filename, input_shape) for filename in batch_filenames])
+        batch_output = np.array([[data[os.path.split(filename)[-1]][attribute]
+                                  for attribute in attributes]
+                                 for filename in batch_filenames])
+        batch_output = (batch_output - means) / stds / 2
         yield batch_input, batch_output
 
 

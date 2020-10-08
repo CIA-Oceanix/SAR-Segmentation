@@ -11,6 +11,8 @@ from keras.callbacks import Callback
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.Image_to_Image.plot_example import plot_example as plot_autoencoder_example
 from Rignak_DeepLearning.Image_to_Class.plot_example import plot_example as plot_categorizer_example
+from Rignak_DeepLearning.Image_to_Class.plot_example import plot_regressor_distribution
+
 from Rignak_DeepLearning.Image_to_Class.confusion_matrix import compute_confusion_matrix, plot_confusion_matrix
 
 HISTORY_CALLBACK_ROOT = get_local_file(__file__, os.path.join('_outputs', 'history'))
@@ -97,8 +99,7 @@ class AutoencoderExampleCallback(Callback):
         self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
-        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
-        os.makedirs(os.path.split(filename)[0], exist_ok=True)
+        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
@@ -127,8 +128,7 @@ class ClassificationExampleCallback(Callback):
         self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
-        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
-        os.makedirs(os.path.split(filename)[0], exist_ok=True)
+        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
         self.on_epoch_end(0, logs=logs)
 
     def on_epoch_end(self, epoch, logs=None):
@@ -148,6 +148,32 @@ class ClassificationExampleCallback(Callback):
         plt.close()
 
 
+class RegressorCallback(Callback):
+    def __init__(self, generator, validation_steps, root=EXAMPLE_CALLBACK_ROOT, denormalizer=None):
+        super().__init__()
+        self.root = root
+        self.generator = generator
+        self.denormalizer = denormalizer
+        self.validation_steps = validation_steps
+
+    def on_train_begin(self, logs=None):
+        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
+        self.on_epoch_end(0, logs=logs)
+
+    def on_epoch_end(self, epoch, logs=None):
+        examples, truths, predictions = [], [], []
+        for _ in range(self.validation_steps):
+            next_ = next(self.generator)
+            examples += list(next_[0])
+            truths += list(next_[1])
+            predictions += list(self.model.predict(next_[0]))
+
+        plot_regressor_distribution(examples, np.array(truths), np.array(predictions), self.model.labels)
+        plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
+        plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
+        plt.close()
+
+
 class ConfusionCallback(Callback):
     def __init__(self, generator, labels, root=CONFUSION_CALLBACK_ROOT):
         super().__init__()
@@ -156,8 +182,7 @@ class ConfusionCallback(Callback):
         self.labels = labels
 
     def on_train_begin(self, logs=None):
-        filename = os.path.join(self.root, self.model.name, f'{self.model.name}.png')
-        os.makedirs(os.path.split(filename)[0], exist_ok=True)
+        os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
 
     def on_epoch_end(self, epoch, logs={}):
         confusion_matrix = compute_confusion_matrix(self.model, self.generator, canals=len(self.labels))
