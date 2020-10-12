@@ -85,14 +85,13 @@ def fake_generator(dataset, batch_size=BATCH_SIZE):
         yield batch_input, batch_output
 
 
-
-
-def rotsym_augmentor(generator):
+def rotsym_augmentor(generator, apply_on_output=True):
     while True:
         batch_input, batch_output = next(generator)
         symmetries = np.random.randint(0, 2, size=(batch_input.shape[0], 2)) * 2 - 1
         rotations = np.random.randint(0, 4, size=(batch_input.shape[0]))
         for i, ((vertical_symmetry, horizontal_symmetry), rotation) in enumerate(zip(symmetries, rotations)):
             batch_input[i] = np.rot90(batch_input[i, ::vertical_symmetry, ::horizontal_symmetry], k=rotation)
-            batch_output[i] = np.rot90(batch_output[i, ::vertical_symmetry, ::horizontal_symmetry], k=rotation)
+            if apply_on_output:
+                batch_output[i] = np.rot90(batch_output[i, ::vertical_symmetry, ::horizontal_symmetry], k=rotation)
         yield batch_input, batch_output

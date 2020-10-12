@@ -11,7 +11,7 @@ from keras.callbacks import Callback
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.Image_to_Image.plot_example import plot_example as plot_autoencoder_example
 from Rignak_DeepLearning.Image_to_Class.plot_example import plot_example as plot_categorizer_example
-from Rignak_DeepLearning.Image_to_Class.plot_example import plot_regressor_distribution
+from Rignak_DeepLearning.Image_to_Class.plot_example import plot_regressor
 
 from Rignak_DeepLearning.Image_to_Class.confusion_matrix import compute_confusion_matrix, plot_confusion_matrix
 
@@ -149,12 +149,16 @@ class ClassificationExampleCallback(Callback):
 
 
 class RegressorCallback(Callback):
-    def __init__(self, generator, validation_steps, root=EXAMPLE_CALLBACK_ROOT, denormalizer=None):
+    def __init__(self, generator, validation_steps, attributes, means, stds,
+                 root=EXAMPLE_CALLBACK_ROOT, denormalizer=None):
         super().__init__()
         self.root = root
         self.generator = generator
         self.denormalizer = denormalizer
         self.validation_steps = validation_steps
+        self.means = means
+        self.stds = stds
+        self.attributes = attributes
 
     def on_train_begin(self, logs=None):
         os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
@@ -162,13 +166,20 @@ class RegressorCallback(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         examples, truths, predictions = [], [], []
-        for _ in range(self.validation_steps):
-            next_ = next(self.generator)
-            examples += list(next_[0])
-            truths += list(next_[1])
-            predictions += list(self.model.predict(next_[0]))
+        if "".join(self.attributes) == 'RGB':
+            while len(examples) < 12:
+                next_ = next(self.generator)
+                examples += list(next_[0])
+                truths += list(next_[1])
+                predictions += list(self.model.predict(next_[0]))
+        else:
+            for _ in range(self.validation_steps):
+                next_ = next(self.generator)
+                examples += list(next_[0])
+                truths += list(next_[1])
+                predictions += list(self.model.predict(next_[0]))
 
-        plot_regressor_distribution(examples, np.array(truths), np.array(predictions), self.model.labels)
+        plot_regressor(examples, np.array(truths), np.array(predictions), self.model.labels, self.means, self.stds)
         plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()

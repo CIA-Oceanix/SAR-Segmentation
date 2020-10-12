@@ -2,29 +2,12 @@
 
 ## Requirements
 
-- os
-- sys
-- glob
-- tqdm
-- numpy
-- cv2
-- scipy
-- PIL
-- datetime
-- fire
-- matplotlib
-- seaborn
-- tensorflow
-- keras
-- Rignak_Misc
+- tensorflow-gpu==1.14.0
+- Keras==2.2.4
+- keras-contrib==2.0.8
+- scikit-image=0.16.2
 
-###### Reinforcement learning specifics
-
-- pygame
-- skimage
-- Rignak_Games
-
-
+## What's inside this repo ?
 ### Autoencoders
 
 ###### Inputs
@@ -91,35 +74,111 @@ Knowing only a classification of the training set, we try to draw the segmentati
 
 Since we use multiprocessing, and by doing so multiple simultaneous file access, the datasets have to be put on a SSD.
 
-The folders should be like :
+The folders should follow these architectures :
 
-For autoencoders :
-  - _{dataset_name}_
-    - train
-    - val
+### Regression
+
+###### Inputs
+
+````shell
+>>> python train.py regressor anime/hair_color --INPUT_SHAPE="(256, 256, 3)" --NAME="anime/regressor/hair_color" --ATTRIBUTES="(R, G, B)" --epochs=50 --CACHE=True
+````
+
+###### Example
+
+If the attributes to regress are R, G and B, we consider the output to be a color and plot the results like this :
+
+![](_outputs/_/hair_color_current.png)
+
+
+### For autoencoders :
+```
+{dataset_name}
+|-- train
+|   |-- {file1.png}
+|   |-- {file2.png}
+|   `-- ...
+`-- val
+    |-- {file1.png}
+    |-- {file2.png}
+    `-- ...
+```   
         
-For segmenter :
-  - _{dataset_name}_
-    - train
-       - input
-       - output
-    - val
-      - input
-      - output
-            
-For image to class :
-  - _{dataset_name}_ 
-    -  train
-       - _{label_1}_
-       - _{label_2}_
-       - ...
-    - val
-       - _{label_1}_
-       - _{label_2}_
-       - ...
-       
-## TODO
+### For segmenter :
+```
+{dataset_name}
+|-- train
+|   |-- input
+|   |   |-- {file1.png}
+|   |   |-- {file2.png}
+|   |   `-- ...
+|   `-- output
+|       |-- {file1.png}
+|       |-- {file2.png}
+|       `-- ...
+`-- val
+    |-- input
+    |   |-- {file1.png}
+    |   |-- {file2.png}
+    |   `-- ...
+    `-- output
+        |-- {file1.png}
+        |-- {file2.png}
+        `-- ...
+```   
 
-Toggle of the lru_cache in command line.
-Parameters for data_augmenter (zoom & rotation) in command line.
-Choice of the data root in command line.
+### For categorizer & saliency
+```
+{dataset_name}
+|-- train
+|   |-- {label_1}
+|   |   |-- {file1.png}
+|   |   |-- {file2.png}
+|   |   `-- ...
+|   `-- {label_2}
+|   |   |-- {file1.png}
+|   |   |-- {file2.png}
+|   |   `-- ...
+|   `-- ...
+`-- val
+    |-- {label_1}
+    |   |-- {file1.png}
+    |   |-- {file2.png}
+    |   `-- ...
+    |-- {label_2}
+    |   |-- {file1.png}
+    |   |-- {file2.png}
+    |   `-- ...
+    `-- ...
+```   
+
+### For regression
+```
+{dataset_name}
+|-- train
+|   |-- {file1.png}
+|   |-- {file2.png}
+|   `-- ...
+`-- val
+|   |-- {file3.png}
+|   |-- {file4.png}
+|   `-- ...
+`-- output.json
+```   
+
+In this case, the json is :
+```json
+{
+    "{file1.png}": {
+        "{attribute1}": 1,
+        "{attribute2}": 2
+    },
+    "{file2.png}": {
+        "{attribute1}": 3,
+        "{attribute2}": 4
+    }
+}
+```   
+Please note that this means that filenames should be unique accross the *val* and *train* folders.
+
+

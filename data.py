@@ -36,7 +36,6 @@ def data_on_folder(folder, size, canals=CANALS):
     return array, filenames
 
 
-# @functools.lru_cache(maxsize=50000)
 def read(filename, input_shape=None):
     if filename.endswith('.lnk'):
         filename = convert_link(filename)

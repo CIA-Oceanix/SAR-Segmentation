@@ -53,8 +53,8 @@ def regressor_base_generator(root, attributes, batch_size=BATCH_SIZE, input_shap
     for filename in filenames:
         if filename.endswith('.lnk'):
             filename = convert_link(filename)
-        if os.path.split(filename)[-1] not in data:
-            print(filename, os.path.split(filename)[-1])
+        # if os.path.split(filename)[-1] not in data:
+        #     print(filename, os.path.split(filename)[-1])
         if all([os.path.split(filename)[-1] in data
                 and attribute in data[os.path.split(filename)[-1]]
                 and not np.isnan(data[os.path.split(filename)[-1]][attribute])
@@ -67,13 +67,12 @@ def regressor_base_generator(root, attributes, batch_size=BATCH_SIZE, input_shap
                      for filename in filenames], axis=0)
     stds = np.std([[data[os.path.split(filename)[-1]][attribute]
                     for attribute in attributes]
-                   for filename in filenames], axis=0)
+                   for filename in filenames], axis=0) * 2
 
     print(f'The attributes were defined for {len(filenames)} files')
     print('MEANS:', means)
     print('STDS:', stds)
-
-    yield None
+    yield tuple(means), tuple(stds)
     while True:
         filenames_index = np.random.randint(0, len(filenames), size=batch_size)
 
@@ -82,7 +81,7 @@ def regressor_base_generator(root, attributes, batch_size=BATCH_SIZE, input_shap
         batch_output = np.array([[data[os.path.split(filename)[-1]][attribute]
                                   for attribute in attributes]
                                  for filename in batch_filenames])
-        batch_output = (batch_output - means) / stds / 2
+        batch_output = (batch_output - means) / stds
         yield batch_input, batch_output
 
 

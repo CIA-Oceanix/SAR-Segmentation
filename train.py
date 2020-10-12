@@ -62,7 +62,7 @@ DEFAULT_INPUT_SHAPE = (256, 256, 3)
 ROOT = 'E:\\\\datasets'
 
 
-def get_generators(config, task, dataset, batch_size, train_folder, val_folder,
+def get_generators(config, task, batch_size, train_folder, val_folder,
                    default_input_shape=DEFAULT_INPUT_SHAPE):
     def get_saliency_generators():
         kwargs = {"input_shape": input_shape, "batch_size": batch_size, "output_shape": output_shape,
@@ -95,7 +95,10 @@ def get_generators(config, task, dataset, batch_size, train_folder, val_folder,
         train_generator = regressor_generator(train_folder, attributes, **kwargs)
         val_generator = regressor_generator(val_folder, attributes, **kwargs)
         callback_generator = regressor_generator(val_folder, attributes, **kwargs)
-        next(train_generator), next(val_generator), next(callback_generator)
+
+        config[task]['MEANS'], config[task]['STDS'] = next(train_generator)
+        config[task]['VAL_MEANS'], config[task]['VAL_STDS'] = next(val_generator)
+        next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_segmenter_generators():
@@ -126,7 +129,7 @@ def get_generators(config, task, dataset, batch_size, train_folder, val_folder,
                  "unet_categorizer": get_categorizer_generators,
                  "regressor": get_regressor_generators,
                  }
-    return functions[task]()
+    return functions[task](), config
 
 
 def get_data_augmentation(config, task, train_generator, val_generator, callback_generator):
@@ -218,7 +221,7 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
             attributes = attributes.split(',')
 
         model = InceptionV3(input_shape, len(attributes), name, load=load, imagenet=config[task].get('IMAGENET', False),
-                            last_activation='tanh', loss='mse', metrics=[], last_dense=True)
+                            last_activation='linear', loss='mse', metrics=[], last_dense=True)
         model.labels = attributes
         return model
 
@@ -260,7 +263,8 @@ def get_callbacks(config, task, model, callback_generator):
         callbacks = [SaveAttributes(callback_generator, config[task]),
                      ModelCheckpoint(model.weight_filename, save_best_only=False),
                      HistoryCallback(batch_size, training_steps),
-                     RegressorCallback(callback_generator, validation_steps)
+                     RegressorCallback(callback_generator, validation_steps, config[task]['ATTRIBUTES'],
+                                       config[task]['VAL_MEANS'], config[task]['VAL_STDS'])
                      ]
         return callbacks
 
@@ -300,8 +304,8 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
     task = config[task]['TASK']
 
     train_folder, val_folder = get_dataset_roots(dataset=dataset, root=root)
-    train_generator, val_generator, callback_generator, train_dir = get_generators(config, task, dataset, batch_size,
-                                                                                   train_folder, val_folder)
+    (train_generator, val_generator, callback_generator, train_dir), config = get_generators(config, task, batch_size,
+                                                                                             train_folder, val_folder)
     train_generator, val_generator, callback_generator = get_data_augmentation(config, task, train_generator,
                                                                                val_generator, callback_generator)
     name = config[task].get('NAME', f'{dataset}_{task}')
