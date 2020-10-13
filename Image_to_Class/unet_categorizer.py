@@ -12,7 +12,7 @@ import runai.ga.keras
 
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.config import get_config
-from Rignak_DeepLearning.models import convolution_block, deconvolution_block
+from Rignak_DeepLearning.models import convolution_block, deconvolution_block, write_summary
 
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
@@ -29,8 +29,6 @@ DEFAULT_METRICS = ['accuracy']
 def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
                  config=CONFIG, name=DEFAULT_NAME, gradient_accumulation=GRADIENT_ACCUMULATION,
                  metrics=DEFAULT_METRICS):
-    weight_filename = os.path.join(weight_root, f"{name}.h5")
-    summary_filename = os.path.join(summary_root, f"{name}.txt")
     convs = []
     block = None
 
@@ -74,17 +72,13 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     model.name = name
-    model.weight_filename = weight_filename
+    model.weight_filename = os.path.join(weight_root, f"{name}.h5")
+    model.summary_filename = os.path.join(summary_root, f"{name}.txt")
     if load:
         print('load weights')
-        model.load_weights(weight_filename)
+        model.load_weights(model.weight_filename)
 
-    os.makedirs(os.path.split(summary_filename)[0], exist_ok=True)
-    with open(summary_filename, 'w') as file:
-        old = sys.stdout
-        sys.stdout = file
-        model.summary()
-        sys.stdout = old
+    write_summary(model)
     return model
 
 

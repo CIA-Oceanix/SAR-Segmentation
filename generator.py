@@ -7,15 +7,6 @@ ZOOM = 0.
 ROTATION = 0
 
 
-def normalize_generator(generator, normalizer, apply_on_output=False):
-    while True:
-        batch_input, batch_output = next(generator)
-        batch_input = normalizer(batch_input)
-        if apply_on_output:
-            batch_output = normalizer(batch_output)
-        yield batch_input, batch_output
-
-
 def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_function=None, apply_on_output=True):
     while True:
         batch_input, batch_output = next(generator)
@@ -32,8 +23,8 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
                 input_ = input_[:, ::-1]
                 if apply_on_output:
                     output = output[:, ::-1]
-            if np.random.random() > 0.8:
-                input_ = 1 - input_
+            # if np.random.random() > 0.8:
+            #     input_ = 1 - input_
 
             input_rotation_matrix = cv2.getRotationMatrix2D((input_shape[0] // 2, input_shape[1] // 2), angle, zoom)
             if batch_input.shape[-1] != 1:
@@ -59,15 +50,6 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
 
         if noise_function is not None:
             batch_input, batch_output = noise_function(batch_input, batch_output)
-        yield batch_input, batch_output
-
-
-def occlusion_generator(generator, color=(255, 0, 0)):
-    next(generator)
-    yield None
-    while True:
-        batch_input, batch_output = next(generator)
-        batch_input[:, :, :batch_input.shape[2] // 2] = color
         yield batch_input, batch_output
 
 

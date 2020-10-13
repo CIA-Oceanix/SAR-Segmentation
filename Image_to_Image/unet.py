@@ -3,13 +3,13 @@ import os
 
 from keras.models import Model
 from keras.layers import Input, Conv2D
-from keras.optimizers import adam
 from keras_radam.training import RAdamOptimizer
+import keras.backend as K
 
 from Rignak_Misc.path import get_local_file
-from Rignak_DeepLearning.models import convolution_block, deconvolution_block
+from Rignak_DeepLearning.models import convolution_block, deconvolution_block, write_summary
 from Rignak_DeepLearning.config import get_config
-from Rignak_DeepLearning.loss import dice_coef_loss, weighted_binary_crossentropy
+from Rignak_DeepLearning.loss import dice_coef_loss, weighted_binary_crossentropy, get_metrics
 
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
@@ -21,10 +21,16 @@ CONFIG = get_config()[CONFIG_KEY]
 DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 
+def get_additional_metrics(metrics, loss, labels):
+    if 'all' in metrics:
+        metrics.pop(metrics.index('all'))
+        names = [f"{label}_loss" for label in labels]
+        metrics += get_metrics(loss, names)
+    return metrics
+
+
 def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
-                 config=CONFIG, name=DEFAULT_NAME, skip=True):
-    weight_filename = os.path.join(weight_root, f"{name}.h5")
-    summary_filename = os.path.join(summary_root, f"{name}.txt")
+                 config=CONFIG, name=DEFAULT_NAME, skip=True, metrics=None, labels=None):
     convs = []
     block = None
 
@@ -34,9 +40,13 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     input_shape = config.get('INPUT_SHAPE', (512, 512, 3))
     output_shape = config.get('OUTPUT_SHAPE', (32, 32, 1))
     activation = config.get('ACTIVATION', 'relu')
+    if activation == 'sin':
+        activation = K.sin
     last_activation = config.get('LAST_ACTIVATION', 'sigmoid')
     loss = config.get('LOSS', 'mse')
     output_canals = output_shape[-1]
+    if len(labels) != output_canals:
+        labels = [f'class_{i}' for i in range(output_canals)]
 
     inputs = Input(input_shape)
     # encoder
@@ -50,7 +60,8 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
         convs.append(conv)
 
     # central
-    block, conv = convolution_block(block, conv_layers[-1] * 2, activation=activation, maxpool=False,
+    central_shape = config.get('CENTRAL_SHAPE', conv_layers[-1] * 2)
+    block, conv = convolution_block(block, central_shape, activation=activation, maxpool=False,
                                     batch_normalization=batch_normalization)
 
     # decoder
@@ -65,26 +76,24 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
 
     model = Model(inputs=[inputs], outputs=[conv_layer])
     optimizer = RAdamOptimizer(learning_rate)
-    # optimizer = adam(lr=learning_rate)
 
     if loss == "DICE":
         loss = dice_coef_loss
     if loss == "WBCE":
         loss = weighted_binary_crossentropy
+    if 'all' in metrics and output_canals != 1:
+        names = [f"{label}_loss" for label in labels]
+        metrics = get_metrics(loss, names)
 
-    model.compile(optimizer=optimizer, loss=loss)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     model.name = name
-    model.weight_filename = weight_filename
+    model.summary_filename = os.path.join(summary_root, f"{name}.txt")
+    model.weight_filename = os.path.join(weight_root, f"{name}.h5")
+
     if load:
         print('load weights')
-        model.load_weights(weight_filename)
+        model.load_weights(model.weight_filename)
 
-    os.makedirs(os.path.split(summary_filename)[0], exist_ok=True)
-    with open(summary_filename, 'w') as file:
-        old = sys.stdout
-        sys.stdout = file
-        model.summary()
-        sys.stdout = old
-
+    write_summary(model)
     return model

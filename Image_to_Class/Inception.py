@@ -1,25 +1,21 @@
 import os
-import sys
 
 from keras.applications.inception_v3 import InceptionV3
 from keras.layers import Dense, GlobalAveragePooling2D, Input, concatenate
 from keras.models import Model
-from keras.optimizers import Adam
 from keras_radam.training import RAdamOptimizer
-import runai.ga.keras
+from keras.metrics import categorical_accuracy, mean_squared_error, categorical_crossentropy
 
-from Rignak_DeepLearning.Image_to_Class.flat import WEIGHT_ROOT, SUMMARY_ROOT
+from Rignak_Misc.path import get_local_file
+from Rignak_DeepLearning.loss import get_metrics
+from Rignak_DeepLearning.models import write_summary
 
-from Rignak_DeepLearning.loss import get_polarisation_metric
-
-# nohup python3.6 train.py inceptionV3 chen --run_on_gpu=0 --IMAGENET=transfer --INPUT_SHAPE="(299,299,3)" > nohup_gpu0.out &
-# nohup python3.6 train.py inceptionV3 chen --run_on_gpu=1 --INPUT_SHAPE="(299,299,3)" > nohup_gpu1.out &
-# nohup python3.6 train.py inceptionV3 chen --run_on_gpu=2 --IMAGENET=transfer --INPUT_SHAPE="(512,512,3)" --NAME="bigger_" > nohup_gpu2.out &
+WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
+SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
 
 LOAD = False
 IMAGENET = False
 DEFAULT_LOSS = 'categorical_crossentropy'
-DEFAULT_METRICS = ['accuracy', get_polarisation_metric(4)]
 DEFAULT_METRICS = ['accuracy']
 LAST_ACTIVATION = 'softmax'
 LEARNING_RATE = 10 ** -5
@@ -28,7 +24,7 @@ GRADIENT_ACCUMULATION = 8
 
 def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD,
                     imagenet=IMAGENET, loss=DEFAULT_LOSS, metrics=DEFAULT_METRICS, last_activation=LAST_ACTIVATION,
-                    learning_rate=LEARNING_RATE, gradient_accumulation=GRADIENT_ACCUMULATION, last_dense=False):
+                    learning_rate=LEARNING_RATE, last_dense=False):
     if imagenet:
         print('Will load imagenet weights')
         weights = "imagenet"
@@ -55,8 +51,6 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
             layer.trainable = False
 
     optimizer = RAdamOptimizer(learning_rate)
-    # optimizer = Adam(learning_rate)
-    # optimizer = runai.ga.keras.optimizers.Optimizer(optimizer, steps=gradient_accumulation)
 
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
@@ -68,10 +62,5 @@ def import_model_v3(input_shape, output_shape, name, weight_root=WEIGHT_ROOT, su
         print('load weights')
         model.load_weights(model.weight_filename)
 
-    os.makedirs(os.path.split(model.summary_filename)[0], exist_ok=True)
-    with open(model.summary_filename, 'w') as file:
-        old = sys.stdout
-        sys.stdout = file
-        model.summary()
-        sys.stdout = old
+    write_summary(model)
     return model

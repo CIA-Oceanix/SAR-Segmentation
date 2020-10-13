@@ -20,7 +20,6 @@ keras.backend.tensorflow_backend.set_session(sess)
 from keras.callbacks import ModelCheckpoint
 
 from Rignak_DeepLearning.data import get_dataset_roots
-from Rignak_DeepLearning.normalization import NORMALIZATION_FUNCTIONS
 from Rignak_DeepLearning.noise import get_composition
 from Rignak_DeepLearning.callbacks import \
     HistoryCallback, \
@@ -30,7 +29,7 @@ from Rignak_DeepLearning.callbacks import \
     RegressorCallback, \
     SaveAttributes
 
-from Rignak_DeepLearning.generator import normalize_generator, augment_generator, rotsym_augmentor
+from Rignak_DeepLearning.generator import augment_generator, rotsym_augmentor
 from Rignak_DeepLearning.config import get_config
 
 if task in ("saliency", "autoencoder", "segmenter", "flat_autoencoder"):
@@ -43,7 +42,6 @@ if task in ("saliency", "autoencoder", "segmenter", "flat_autoencoder"):
 
 elif task in ("categorizer", "inceptionV3", "mosaic_categorizer", "multiscale_mosaic_categorizer",
               "unet_categorizer", "regressor"):
-    from Rignak_DeepLearning.Image_to_Class.flat import import_model as import_categorizer
     from Rignak_DeepLearning.Image_to_Class.Inception import import_model_v3 as InceptionV3
     from Rignak_DeepLearning.Image_to_Class.unet_categorizer import import_model as import_unet_categorizer
     from Rignak_DeepLearning.Image_to_Class.generator import \
@@ -121,11 +119,7 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
     functions = {"saliency": get_saliency_generators,
                  "autoencoder": get_autoencoder_generators,
                  "segmenter": get_segmenter_generators,
-                 "flat_autoencoder": get_autoencoder_generators,
-                 "categorizer": get_categorizer_generators,
                  "inceptionV3": get_categorizer_generators,
-                 "mosaic_categorizer": get_categorizer_generators,
-                 "multiscale_mosaic_categorizer": get_categorizer_generators,
                  "unet_categorizer": get_categorizer_generators,
                  "regressor": get_regressor_generators,
                  }
@@ -138,13 +132,8 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
                   "rotation": rotation}
 
         new_train_generator = augment_generator(train_generator, **kwargs)
-        new_train_generator = normalize_generator(new_train_generator, normalizer, apply_on_output=True)
-
         new_val_generator = augment_generator(val_generator, **kwargs)
-        new_val_generator = normalize_generator(new_val_generator, normalizer, apply_on_output=True)
-
         new_callback_generator = augment_generator(callback_generator, **kwargs)
-        new_callback_generator = normalize_generator(new_callback_generator, normalizer, apply_on_output=True)
 
         new_train_generator = rotsym_augmentor(new_train_generator)
         new_val_generator = rotsym_augmentor(new_val_generator)
@@ -157,30 +146,26 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
                   "rotation": rotation}
 
         new_train_generator = augment_generator(train_generator, **kwargs)
-        new_train_generator = normalize_generator(new_train_generator, normalizer, apply_on_output=False)
-
         new_val_generator = augment_generator(val_generator, **kwargs)
-        new_val_generator = normalize_generator(new_val_generator, normalizer, apply_on_output=False)
-
         new_callback_generator = augment_generator(callback_generator, **kwargs)
-        new_callback_generator = normalize_generator(new_callback_generator, normalizer, apply_on_output=False)
 
         return new_train_generator, new_val_generator, new_callback_generator
 
     def get_regressor_augmentation():
         return train_generator, val_generator, callback_generator
+        new_train_generator = rotsym_augmentor(train_generator, apply_on_output=False)
+        new_val_generator = rotsym_augmentor(val_generator, apply_on_output=False)
+        new_callback_generator = rotsym_augmentor(callback_generator, apply_on_output=False)
+        return new_train_generator, new_val_generator, new_callback_generator
 
-    normalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'none')]()[0]
     noise_function = get_composition(config[task].get('NOISE', [None]),
                                      config[task].get('NOISE_PARAMETERS', (())))
     zoom_factor = config[task].get('ZOOM', 0)
     rotation = config[task].get('ROTATION', 0)
 
-    functions = {"style_transfer": get_im2im_data_augmentation,
-                 "saliency": get_im2im_data_augmentation,
+    functions = {"saliency": get_im2im_data_augmentation,
                  "segmenter": get_im2im_data_augmentation,
                  "autoencoder": get_im2im_data_augmentation,
-                 "categorizer": get_categorizer_augmentation,
                  "inceptionV3": get_categorizer_augmentation,
                  "unet_categorizer": get_categorizer_augmentation,
                  "regressor": get_regressor_augmentation,
@@ -195,9 +180,10 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
             model = import_unet_categorizer(name=name, config=config[task], load=load)
             model.labels = labels
         elif task == "autoencoder":
-            model = import_unet_model(name=name, config=config[task], load=load, skip=True)
+            model = import_unet_model(name=name, config=config[task], load=load, skip=False)
         else:
-            model = import_unet_model(name=name, config=config[task], load=load)
+            model = import_unet_model(name=name, config=config[task], load=load,
+                                      metrics=config[task].get('METRICS'), labels=labels)
         model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
         return model
 
@@ -205,9 +191,8 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
         if task == 'inceptionV3':
             model = InceptionV3(input_shape, len(labels), name, load=load,
                                 imagenet=config[task].get('IMAGENET', False),
-                                last_activation=config[task].get('LAST_ACTIVATION', 'softmax'))
-        else:
-            model = import_categorizer(len(labels), config=config[task], name=name, load=load)
+                                last_activation=config[task].get('LAST_ACTIVATION', 'softmax'),
+                                metrics=config[task].get('METRICS'))
         model.labels = labels
         return model
 
@@ -234,7 +219,6 @@ def get_models(config, task, name, train_folder, default_input_shape=DEFAULT_INP
                  "autoencoder": get_autoencoder_model,
                  "segmenter": get_autoencoder_model,
                  "unet_categorizer": get_autoencoder_model,
-                 "categorizer": get_categorizer_model,
                  "inceptionV3": get_categorizer_model,
                  "regressor": get_regressor_model,
                  }
@@ -247,7 +231,7 @@ def get_callbacks(config, task, model, callback_generator):
         callbacks = [SaveAttributes(callback_generator, config[task]),
                      ModelCheckpoint(model.weight_filename, save_best_only=True),
                      HistoryCallback(batch_size, training_steps),
-                     AutoencoderExampleCallback(callback_generator, denormalizer=denormalizer)]
+                     AutoencoderExampleCallback(callback_generator)]
         return callbacks
 
     def get_categorizer_callbacks():
@@ -256,7 +240,7 @@ def get_callbacks(config, task, model, callback_generator):
                      # ModelCheckpoint(model.weight_filename + ".{epoch:02d}.h5", save_best_only=True),
                      HistoryCallback(batch_size, training_steps),
                      ConfusionCallback(callback_generator, model.labels),
-                     ClassificationExampleCallback(callback_generator, denormalizer=denormalizer)]
+                     ClassificationExampleCallback(callback_generator)]
         return callbacks
 
     def get_regressor_callback():
@@ -268,7 +252,6 @@ def get_callbacks(config, task, model, callback_generator):
                      ]
         return callbacks
 
-    denormalizer = NORMALIZATION_FUNCTIONS[config[task].get('NORMALIZATION', 'intensity')]()[1]
     batch_size = config[task].get('BATCH_SIZE')
     training_steps = config[task].get('TRAINING_STEPS')
     validation_steps = config[task].get('VALIDATION_STEPS')
@@ -276,8 +259,6 @@ def get_callbacks(config, task, model, callback_generator):
     functions = {"saliency": get_im2im_callbacks,
                  "autoencoder": get_im2im_callbacks,
                  "segmenter": get_im2im_callbacks,
-                 "style_transfer": get_im2im_callbacks,
-                 "categorizer": get_categorizer_callbacks,
                  "inceptionV3": get_categorizer_callbacks,
                  "unet_categorizer": get_categorizer_callbacks,
                  "regressor": get_regressor_callback,

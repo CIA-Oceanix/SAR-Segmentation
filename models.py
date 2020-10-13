@@ -1,3 +1,6 @@
+import os
+import sys
+
 from keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, BatchNormalization, Dropout
 
 KERNEL_SIZE = (3, 3)
@@ -29,3 +32,12 @@ def deconvolution_block(layer, previous_conv, neurons, kernel_size=KERNEL_SIZE, 
     if batch_normalization:
         block = BatchNormalization()(block)
     return block
+
+
+def write_summary(model):
+    os.makedirs(os.path.split(model.summary_filename)[0], exist_ok=True)
+    with open(model.summary_filename, 'w') as file:
+        old = sys.stdout
+        sys.stdout = file
+        model.summary()
+        sys.stdout = old

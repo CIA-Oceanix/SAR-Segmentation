@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 
 from keras.callbacks import Callback
 
+from Rignak_Misc.plt import COLORS
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.Image_to_Image.plot_example import plot_example as plot_autoencoder_example
 from Rignak_DeepLearning.Image_to_Class.plot_example import plot_example as plot_categorizer_example
@@ -26,61 +27,55 @@ class HistoryCallback(Callback):
     def __init__(self, batch_size, training_steps, root=HISTORY_CALLBACK_ROOT):
         super().__init__()
         self.x = []
-        self.losses = []
-        self.val_losses = []
-        self.accuracy = [None]
-        self.val_accuracy = [None]
-        self.logs = []
+        self.logs = {}
         self.root = root
         self.batch_size = batch_size
         self.training_steps = training_steps
 
-        self.metric = []
-        self.val_metric = []
+        self.metrics = []
+        self.val_metrics = []
 
     def on_train_begin(self, logs=None):
         filename = os.path.join(self.root, f'{self.model.name}.png')
         os.makedirs(os.path.split(filename)[0], exist_ok=True)
-        self.on_epoch_end(-1, logs=logs)
 
     def on_epoch_end(self, epoch, logs={}):
+        base_metrics = ('acc', 'val_acc', 'loss', 'val_loss')
         plt.ioff()
-        self.logs.append(logs)
         self.x.append((epoch + 1) * self.batch_size * self.training_steps / 1000)
-        self.losses.append(logs.get('loss'))
-        self.val_losses.append(logs.get('val_loss'))
 
-        self.metric.append(logs.get('polarisation_metric'))
-        self.val_metric.append(logs.get('val_polarisation_metric'))
+        for key, value in logs.items():
+            if key not in self.logs:
+                self.logs[key] = []
+            self.logs[key].append(value)
+        validation_logs = {key: value for key, value in self.logs.items()
+                           if key not in base_metrics and key.startswith('val_')}
+        cols = 1 if 'acc' not in logs and not len(validation_logs) else 2
+        plt.figure(figsize=(6 * cols, 6))
 
-        if logs.get('acc'):
-            cols = 3 if logs.get('polarisation_metric') else 2
-
-            plt.figure(figsize=(12, 6))
-            self.accuracy.append(logs.get('acc'))
-            self.val_accuracy.append(logs.get('val_acc'))
-
+        if 'acc' in logs:
             plt.subplot(1, cols, 2)
-            plt.plot(self.x, self.accuracy, label="Training")
-            plt.plot(self.x, self.val_accuracy, label="Validation")
+            plt.plot(self.x, self.logs['acc'], label="Training")
+            plt.plot(self.x, self.logs['val_acc'], label="Validation")
             plt.xlabel('kimgs')
             plt.ylabel('Accuracy')
             plt.ylim(0, 1)
             plt.legend()
 
-            if logs.get('polarisation_metric'):
-                plt.subplot(1, cols, 3)
-                plt.plot(self.x, self.metric, label="Training")
-                plt.plot(self.x, self.val_metric, label="Validation")
-                plt.xlabel('kimgs')
-                plt.ylabel('Mean magnitude of non-max values')
-                # plt.yscale('log')
-                plt.legend()
+        if len(validation_logs):
+            plt.subplot(1, cols, 2)
 
-            plt.subplot(1, cols, 1)
+            for color, (label, values) in zip(COLORS, validation_logs.items()):
+                plt.plot(self.x, values, label=label, color=color)
+            plt.xlabel('kimgs')
+            plt.ylabel('Additional Validation Losses')
+            plt.yscale('log')
+            plt.legend()
 
-        plt.plot(self.x, self.losses, label="Training")
-        plt.plot(self.x, self.val_losses, label="Validation")
+        plt.subplot(1, cols, 1)
+
+        plt.plot(self.x, self.logs['loss'], label="Training")
+        plt.plot(self.x, self.logs['val_loss'], label="Validation")
         plt.xlabel('kimgs')
         plt.ylabel('Loss')
         plt.yscale('log')
