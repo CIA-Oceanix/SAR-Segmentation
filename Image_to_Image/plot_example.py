@@ -6,7 +6,7 @@ MAX_THUMBS = 8
 
 
 def plot_less_than_three_canals(input_, prediction, groundtruth, labels, denormalizer=None):
-    plt.figure(figsize=(input_.shape[2] / 100 * 9, input_.shape[1] / 100 * 3.5))
+    plt.figure(figsize=(max(256, input_.shape[2]) / 100 * 9, max(256, input_.shape[1]) / 100 * 3.5))
     if groundtruth is None:
         line_number = 2
     else:

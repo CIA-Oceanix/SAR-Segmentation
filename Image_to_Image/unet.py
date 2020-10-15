@@ -14,7 +14,7 @@ from Rignak_DeepLearning.loss import dice_coef_loss, weighted_binary_crossentrop
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
 LOAD = False
-LEARNING_RATE = 10 ** -5
+LEARNING_RATE = 10 ** -4
 
 CONFIG_KEY = 'segmenter'
 CONFIG = get_config()[CONFIG_KEY]
@@ -22,7 +22,7 @@ DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 
 def get_additional_metrics(metrics, loss, labels):
-    if 'all' in metrics:
+    if metrics is not None and 'all' in metrics:
         metrics.pop(metrics.index('all'))
         names = [f"{label}_loss" for label in labels]
         metrics += get_metrics(loss, names)
@@ -38,14 +38,14 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     batch_normalization = config.get('BATCH_NORMALIZATION', False)
     conv_layers = config['CONV_LAYERS']
     input_shape = config.get('INPUT_SHAPE', (512, 512, 3))
-    output_shape = config.get('OUTPUT_SHAPE', (32, 32, 1))
+    output_shape = config.get('OUTPUT_SHAPE', input_shape)
     activation = config.get('ACTIVATION', 'relu')
     if activation == 'sin':
         activation = K.sin
     last_activation = config.get('LAST_ACTIVATION', 'sigmoid')
     loss = config.get('LOSS', 'mse')
     output_canals = output_shape[-1]
-    if len(labels) != output_canals:
+    if labels is not None and len(labels) != output_canals:
         labels = [f'class_{i}' for i in range(output_canals)]
 
     inputs = Input(input_shape)
@@ -81,9 +81,7 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
         loss = dice_coef_loss
     if loss == "WBCE":
         loss = weighted_binary_crossentropy
-    if 'all' in metrics and output_canals != 1:
-        names = [f"{label}_loss" for label in labels]
-        metrics = get_metrics(loss, names)
+    metrics = get_additional_metrics(metrics, loss, labels)
 
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 

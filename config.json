@@ -97,9 +97,7 @@
       256,
       3
     ],
-    "LAYER_NUMBER": 18,
-    "OUTPUT_CANALS": 512,
-    "GAN_FILENAME": false
+    "LAST_ACTIVATION": "linear"
   },
   "unet_categorizer": {
     "TASK": "unet_categorizer",
@@ -116,5 +114,13 @@
     ],
     "OUTPUT_CANALS": 10,
     "BLACK_DEPTH": 2
+  },
+  "gan_autoencoder": {
+    "TASK": "gan_autoencoder",
+    "ACTIVATION": "relu"
+  },
+  "gan_segmenter": {
+    "TASK": "gan_segmenter",
+    "ACTIVATION": "relu"
   }
 }
