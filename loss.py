@@ -32,7 +32,7 @@ def dice_coef_loss(y_true, y_pred, class_weights=CLASS_WEIGHTS):
 
 def get_metrics(metric, names):
     def metric_function(metric, index):
-        return lambda y_true, y_pred: metric(y_true, y_pred)[:, :, :, index]
+        return lambda y_true, y_pred: metric(y_true, y_pred)[..., index]
 
     metrics = []
     for i, name in enumerate(names):
@@ -42,3 +42,7 @@ def get_metrics(metric, names):
         metrics[-1].__name__ = name
 
     return metrics
+
+
+LOSS_TRANSLATION = {'WBCE': weighted_binary_crossentropy,
+                    'DICE': dice_coef_loss}

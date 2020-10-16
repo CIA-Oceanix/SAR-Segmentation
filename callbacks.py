@@ -87,11 +87,10 @@ class HistoryCallback(Callback):
 
 
 class AutoencoderExampleCallback(Callback):
-    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT, denormalizer=None):
+    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT):
         super().__init__()
         self.root = root
         self.generator = generator
-        self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
         os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
@@ -100,27 +99,25 @@ class AutoencoderExampleCallback(Callback):
     def on_epoch_end(self, epoch, logs={}):
         example = [[], [], []]
         while len(example[0]) < 8:
-            next_ = next(self.generator)
-            example[0] += list(next_[0])
-            example[1] += list(next_[1])
-            example[2] += list(self.model.predict(next_[0]))
+            batch_input, batch_output = next(self.generator)
+            example[0] += list(batch_input[0] if isinstance(batch_input, list) else batch_input)
+            example[1] += list(batch_output)
+            example[2] += list(self.model.predict(batch_input))
         example[0] = np.array(example[0])
         example[1] = np.array(example[1])
         example[2] = np.array(example[2])
 
-        plot_autoencoder_example(example[0], example[2], groundtruth=example[1], labels=self.model.callback_titles,
-                                 denormalizer=self.denormalizer)
+        plot_autoencoder_example(example[0], example[2], groundtruth=example[1], labels=self.model.callback_titles)
         plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
 
 
 class ClassificationExampleCallback(Callback):
-    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT, denormalizer=None):
+    def __init__(self, generator, root=EXAMPLE_CALLBACK_ROOT):
         super().__init__()
         self.root = root
         self.generator = generator
-        self.denormalizer = denormalizer
 
     def on_train_begin(self, logs=None):
         os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
@@ -129,31 +126,29 @@ class ClassificationExampleCallback(Callback):
     def on_epoch_end(self, epoch, logs=None):
         example = [[], [], []]
         while len(example[0]) < 8:
-            next_ = next(self.generator)
-            example[0] += list(next_[0])
-            example[1] += list(next_[1])
-            example[2] += list(self.model.predict(next_[0]))
+            batch_input, batch_output = next(self.generator)
+            example[0] += list(batch_input[0] if isinstance(batch_input, list) else batch_input)
+            example[1] += list(batch_output)
+            example[2] += list(self.model.predict(batch_input))
         example[0] = np.array(example[0])
         example[1] = np.array(example[1])
         example[2] = np.array(example[2])
 
-        plot_categorizer_example(example[:2], example[2], self.model.labels, denormalizer=self.denormalizer)
+        plot_categorizer_example(example[:2], example[2], self.model.labels)
         plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
         plt.savefig(os.path.join(self.root, f'{self.model.name}_current.png'))
         plt.close()
 
 
 class RegressorCallback(Callback):
-    def __init__(self, generator, validation_steps, attributes, means, stds,
-                 root=EXAMPLE_CALLBACK_ROOT, denormalizer=None):
+    def __init__(self, generator, validation_steps, attributes, means, stds, root=EXAMPLE_CALLBACK_ROOT):
         super().__init__()
         self.root = root
         self.generator = generator
-        self.denormalizer = denormalizer
         self.validation_steps = validation_steps
         self.means = means
         self.stds = stds
-        self.attributes = attributes
+        self.attributes = "".join(attributes) == 'RGB'
 
     def on_train_begin(self, logs=None):
         os.makedirs(os.path.join(self.root, self.model.name), exist_ok=True)
@@ -161,18 +156,14 @@ class RegressorCallback(Callback):
 
     def on_epoch_end(self, epoch, logs=None):
         examples, truths, predictions = [], [], []
-        if "".join(self.attributes) == 'RGB':
-            while len(examples) < 12:
-                next_ = next(self.generator)
-                examples += list(next_[0])
-                truths += list(next_[1])
-                predictions += list(self.model.predict(next_[0]))
-        else:
-            for _ in range(self.validation_steps):
-                next_ = next(self.generator)
-                examples += list(next_[0])
-                truths += list(next_[1])
-                predictions += list(self.model.predict(next_[0]))
+        i_step = 0
+        while (self.attributes == 'RGB' and len(examples) < 12) or \
+                (self.attributes != 'RGB' and i_step < self.validation_steps):
+            i_step += 1
+            batch_input, batch_output = next(self.generator)
+            examples += list(batch_input[0] if isinstance(batch_input, list) else batch_input)
+            truths += list(batch_output)
+            predictions += list(self.model.predict(batch_input))
 
         plot_regressor(examples, np.array(truths), np.array(predictions), self.model.labels, self.means, self.stds)
         plt.savefig(os.path.join(self.root, self.model.name, f'{os.path.split(self.model.name)[-1]}_{epoch}.png'))
@@ -225,7 +216,7 @@ class SaveAttributes(Callback):
             json.dump(dict_to_save, file, sort_keys=True, indent=4)
 
         if np.argmax(val_losses) == len(val_losses) - 1:
-            self.input_ = input_.tolist()
+            self.input_ = [e.tolist() for e in input_] if isinstance(input_, list) else input_.tolist()
             self.groundtruth = groundtruth.tolist()
             self.output = self.model.predict(input_).tolist()
 

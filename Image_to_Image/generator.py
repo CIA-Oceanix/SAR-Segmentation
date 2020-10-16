@@ -3,6 +3,7 @@ import os
 import glob
 from skimage.transform import resize
 
+from Rignak_DeepLearning.generator import get_add_additional_inputs
 from Rignak_DeepLearning.data import read
 from Rignak_Misc.path import list_dir, convert_link
 
@@ -24,7 +25,7 @@ def autoencoder_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SH
 
 
 def segmenter_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE,
-                             input_label=INPUT_LABEL, output_label=OUTPUT_LABEL):
+                             input_label=INPUT_LABEL, output_label=OUTPUT_LABEL, attributes=None):
     input_filenames = np.array(sorted(glob.glob(os.path.join(root, input_label, '*.*'))))
     output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.*'))))
 
@@ -32,6 +33,8 @@ def segmenter_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAP
 
     [convert_link(filename) for filename in input_filenames if filename.endswith('.lnk')]
     [convert_link(filename) for filename in output_filenames if filename.endswith('.lnk')]
+
+    add_additional_inputs = get_add_additional_inputs(root, attributes)
 
     yield None
     while True:
@@ -41,6 +44,8 @@ def segmenter_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAP
 
         batch_output_path = output_filenames[batch_index]
         batch_output = np.array([read(path, output_shape) for path in batch_output_path])
+
+        batch_input = add_additional_inputs(batch_input, batch_input_path)
         yield batch_input, batch_output
 
 

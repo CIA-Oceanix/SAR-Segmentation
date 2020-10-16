@@ -73,7 +73,7 @@ class Yes_UGAN():
 
         self.adversarial_autoencoder = Model(input_layer, [generator_prediction, discriminator_prediction],
                                              name=name)
-        self.loss_weights = [1., 0.001]
+        self.loss_weights = [1., 0.00001]
         self.adversarial_autoencoder.compile(loss=[self.generator_loss, self.discriminator_loss],
                                              loss_weights=self.loss_weights, optimizer=RAdamOptimizer(learning_rate))
         self.name = name
@@ -98,15 +98,13 @@ class Yes_UGAN():
             discriminator_truth = np.concatenate([np.ones(generator_prediction.shape[0]),
                                                   np.zeros(generator_prediction.shape[0])], axis=0)
             discriminator_truth += np.random.normal(size=discriminator_truth.shape, scale=0.05)
-            discriminator_prediction = self.discriminator.predict(discriminator_input)
-            discriminator_accuracy = np.mean(np.where(abs(discriminator_prediction - discriminator_truth) > 0.5, 1, 0))
-            discriminator_loss = self.discriminator.train_on_batch([discriminator_input], [discriminator_truth])
+            self.discriminator.train_on_batch([discriminator_input], [discriminator_truth])
 
             # Train the generator
             generator_loss = self.adversarial_autoencoder.train_on_batch([generator_input],
                                                                          [generator_truth,
                                                                           np.zeros(generator_prediction.shape[0])])
-            return generator_loss, [discriminator_loss, discriminator_accuracy]
+            return generator_loss
 
         for callback in callbacks:
             callback.model = self.generator
@@ -117,15 +115,15 @@ class Yes_UGAN():
 
             generator_losses = []
             discriminator_losses = []
-            discriminator_accuracies = []
+            total_losses = []
             for batch_i in range(steps_per_epoch):
-                generator_loss, discriminator_loss = process_batch(generator)
-                generator_losses.append(generator_loss[1])
-                discriminator_losses.append(discriminator_loss[0])
-                discriminator_accuracies.append(discriminator_loss[1])
+                total_loss, generator_loss, discriminator_loss = process_batch(generator)
+                total_losses.append(total_loss)
+                generator_losses.append(generator_loss)
+                discriminator_losses.append(discriminator_loss)
                 pbar.set_description(
                     f"Epoch {epoch}/{epochs} - Batch {batch_i + 1}/{steps_per_epoch} - "
-                    f"[D_loss = {np.mean(discriminator_losses):.4f} D_acc = {np.mean(discriminator_accuracies):.1%}%"
+                    f"[D_loss = {np.mean(discriminator_losses):.4f} "
                     f" E_loss = {np.mean(generator_losses):.4f}"
                 )
                 pbar.update(1)
@@ -143,27 +141,25 @@ class Yes_UGAN():
                 discriminator_prediction = self.discriminator.predict(discriminator_input)
 
                 validation_generator_loss = np.mean((generator_truth - generator_prediction) ** 2)
-                validation_generator_losses.append(validation_generator_loss / generator_input.shape[0])
+                validation_generator_losses.append(validation_generator_loss)
 
                 validation_discriminator_loss = np.mean((discriminator_truth - discriminator_prediction) ** 2)
-                validation_discriminator_losses.append(validation_discriminator_loss / generator_input.shape[0])
+                validation_discriminator_losses.append(validation_discriminator_loss)
 
                 validation_discriminator_accuracy = np.mean(abs(discriminator_prediction - discriminator_truth) > 0.5)
                 validation_discriminator_accuracies.append(validation_discriminator_accuracy)
 
             logs = {
-                "loss": float(np.mean(generator_losses) * self.loss_weights[0] +
-                              np.mean(discriminator_losses) * self.loss_weights[1]),
+                "loss": float(np.mean(generator_losses) + np.mean(discriminator_losses)),
                 "val_loss": float(np.mean(validation_generator_losses) * self.loss_weights[0] +
                                   np.mean(validation_discriminator_losses) * self.loss_weights[1]),
                 # "acc": float(np.mean(discriminator_accuracies)),
                 # "val_acc": float(np.mean(validation_discriminator_accuracies)),
                 "generator_loss": float(np.mean(generator_losses)),
-                "val_generator_loss": float(np.mean(validation_generator_losses)),
+                "val_generator_loss": float(np.mean(validation_generator_losses) * self.loss_weights[0]),
                 "discriminator_loss": float(np.mean(discriminator_losses)),
-                "val_discriminator_loss": float(np.mean(validation_discriminator_losses))
+                "val_discriminator_loss": float(np.mean(validation_discriminator_losses) * self.loss_weights[1])
             }
-            print(logs)
 
             for callback in callbacks:
                 callback.on_epoch_end(epoch=epoch, logs=logs)

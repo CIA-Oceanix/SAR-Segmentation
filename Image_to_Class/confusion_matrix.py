@@ -14,17 +14,15 @@ GAMMAS = [0.7]
 def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
     i = 0
     if canals is None:
-        canals = next(generator)[1].shape[-1]
+        _, batch_output = next(generator)
+        canals = batch_output.shape[-1]
 
     confusion_matrix = np.zeros((canals, canals))
 
     while i < limit:
-        inputs, groundtruths = next(generator)
-        predictions = model.predict(inputs)
-        if False and len(predictions) == 2:  # added to support the bimode, but doesn't work with batch_size=2
-            predictions = predictions[0]
-            groundtruths = groundtruths[0]
-        for groundtruth, prediction in zip(groundtruths, predictions):
+        batch_input, batch_output = next(generator)
+        predictions = model.predict(batch_input)
+        for groundtruth, prediction in zip(batch_output, predictions):
             groundtruth_arg = np.argmax(groundtruth)
             prediction_arg = np.argmax(prediction)
             confusion_matrix[groundtruth_arg, prediction_arg] += 1

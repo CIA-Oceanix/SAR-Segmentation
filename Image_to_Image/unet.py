@@ -1,15 +1,16 @@
 import sys
 import os
+import numpy as np
 
 from keras.models import Model
-from keras.layers import Input, Conv2D
+from keras.layers import Input, Conv2D, RepeatVector, Reshape, concatenate, Lambda
 from keras_radam.training import RAdamOptimizer
 import keras.backend as K
 
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.models import convolution_block, deconvolution_block, write_summary
 from Rignak_DeepLearning.config import get_config
-from Rignak_DeepLearning.loss import dice_coef_loss, weighted_binary_crossentropy, get_metrics
+from Rignak_DeepLearning.loss import LOSS_TRANSLATION, get_metrics
 
 WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
 SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
@@ -29,60 +30,87 @@ def get_additional_metrics(metrics, loss, labels):
     return metrics
 
 
-def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
-                 config=CONFIG, name=DEFAULT_NAME, skip=True, metrics=None, labels=None):
+def build_encoder(input_shape, conv_layers, activation, batch_normalization):
     convs = []
-    block = None
+    input_layer = Input(input_shape)
+    block = input_layer
 
+    for neurons in conv_layers:
+        block, conv = convolution_block(block, neurons, activation=activation, maxpool=True,
+                                        batch_normalization=batch_normalization)
+        convs.append(conv)
+    return input_layer, block, convs
+
+
+def build_decoder(block, convs, conv_layers, output_shape, activation, last_activation, skip):
+    for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
+        if block.shape[1] == output_shape[0] and block.shape[2] == output_shape[1]:
+            break
+        previous_conv = previous_conv if skip else None
+        block = deconvolution_block(block, previous_conv, neurons, activation=activation)
+
+    output_layer = Conv2D(output_shape[-1], (1, 1), activation=last_activation)(block)
+    return output_layer
+
+
+def build_unet(input_shape, activation, batch_normalization, conv_layers, skip, last_activation, output_shape,
+               central_shape):
+    input_layer, block, convs = build_encoder(input_shape, conv_layers, activation, batch_normalization)
+
+    block, conv = convolution_block(block, central_shape, activation=activation, maxpool=False,
+                                    batch_normalization=batch_normalization)
+
+    output_layer = build_decoder(block, convs, conv_layers, output_shape, activation, last_activation, skip)
+    model = Model(inputs=[input_layer], outputs=[output_layer])
+    return model
+
+
+def build_multi_input_unet(input_shape, activation, batch_normalization, conv_layers, skip, last_activation,
+                           output_shape, central_shape, additional_input_number):
+    input_layer, block, convs = build_encoder(input_shape, conv_layers, activation, batch_normalization)
+
+    block, conv = convolution_block(block, central_shape, activation=activation, maxpool=False,
+                                    batch_normalization=batch_normalization)
+    additional_inputs = Input(shape=(additional_input_number,))
+    tiled_inputs = RepeatVector(int(block.shape[1] * block.shape[2]))(additional_inputs)
+    tiled_inputs = Reshape([int(block.shape[1]), int(block.shape[2]), additional_input_number])(tiled_inputs)
+
+    block = concatenate([block, tiled_inputs], axis=-1)
+
+    output_layer = build_decoder(block, convs, conv_layers, output_shape, activation, last_activation, skip)
+    model = Model(inputs=[input_layer, additional_inputs], outputs=[output_layer])
+    return model
+
+
+def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
+                 config=CONFIG, name=DEFAULT_NAME, skip=True, metrics=None, labels=None, additional_input_number=0):
+    conv_layers = config['CONV_LAYERS']
+    central_shape = config.get('CENTRAL_SHAPE', conv_layers[-1] * 2)
     learning_rate = config.get('LEARNING_RATE', learning_rate)
     batch_normalization = config.get('BATCH_NORMALIZATION', False)
-    conv_layers = config['CONV_LAYERS']
     input_shape = config.get('INPUT_SHAPE', (512, 512, 3))
     output_shape = config.get('OUTPUT_SHAPE', input_shape)
+
     activation = config.get('ACTIVATION', 'relu')
     if activation == 'sin':
         activation = K.sin
     last_activation = config.get('LAST_ACTIVATION', 'sigmoid')
+
     loss = config.get('LOSS', 'mse')
-    output_canals = output_shape[-1]
-    if labels is not None and len(labels) != output_canals:
-        labels = [f'class_{i}' for i in range(output_canals)]
+    loss = LOSS_TRANSLATION.get(loss, loss)
 
-    inputs = Input(input_shape)
-    # encoder
-    for neurons in conv_layers:
-        if block is None:
-            block, conv = convolution_block(inputs, neurons, activation=activation, maxpool=True,
-                                            batch_normalization=batch_normalization)
-        else:
-            block, conv = convolution_block(block, neurons, activation=activation, maxpool=True,
-                                            batch_normalization=batch_normalization)
-        convs.append(conv)
+    if labels is not None and len(labels) != output_shape[-1]:
+        labels = [f'class_{i}' for i in range(output_shape[-1])]
 
-    # central
-    central_shape = config.get('CENTRAL_SHAPE', conv_layers[-1] * 2)
-    block, conv = convolution_block(block, central_shape, activation=activation, maxpool=False,
-                                    batch_normalization=batch_normalization)
-
-    # decoder
-    for neurons, previous_conv in zip(conv_layers[::-1], convs[::-1]):
-        if block.shape[1] == output_shape[0] and block.shape[2] == output_shape[1]:
-            break
-        if skip:
-            block = deconvolution_block(block, previous_conv, neurons, activation=activation)
-        else:
-            block = deconvolution_block(block, None, neurons, activation=activation)
-    conv_layer = Conv2D(output_canals, (1, 1), activation=last_activation)(block)
-
-    model = Model(inputs=[inputs], outputs=[conv_layer])
     optimizer = RAdamOptimizer(learning_rate)
-
-    if loss == "DICE":
-        loss = dice_coef_loss
-    if loss == "WBCE":
-        loss = weighted_binary_crossentropy
     metrics = get_additional_metrics(metrics, loss, labels)
 
+    if additional_input_number:
+        model = build_multi_input_unet(input_shape, activation, batch_normalization, conv_layers, skip, last_activation,
+                                       output_shape, central_shape, additional_input_number)
+    else:
+        model = build_unet(input_shape, activation, batch_normalization, conv_layers, skip, last_activation,
+                           output_shape, central_shape)
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     model.name = name

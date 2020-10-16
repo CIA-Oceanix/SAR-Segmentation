@@ -6,7 +6,7 @@ from Rignak_Misc.plt import imshow
 LIMIT = 8
 
 
-def plot_example(example, prediction, labels, limit=LIMIT, denormalizer=None):
+def plot_example(example, prediction, labels, limit=LIMIT):
     input_, truth = example
     input_ = input_[:limit]
     n = input_.shape[0]
@@ -18,7 +18,7 @@ def plot_example(example, prediction, labels, limit=LIMIT, denormalizer=None):
         else:
             tick_label = labels
         plt.subplot(2, n, i + 1)
-        imshow(im, denormalizer=denormalizer, vmax=1)
+        imshow(im, vmax=1)
 
         plt.subplot(2, n, i + 1 + n)
         plt.barh(labels, truth[i], tick_label=tick_label, color='C1')

@@ -67,7 +67,7 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
                    default_input_shape=DEFAULT_INPUT_SHAPE):
     def get_saliency_generators():
         kwargs = {"input_shape": input_shape, "batch_size": batch_size, "output_shape": output_shape,
-                  "folders": config[task].get('LABELS')}
+                  "folders": folders, "attributes": attributes}
         train_generator = saliency_generator(train_folder, **kwargs)
         val_generator = saliency_generator(val_folder, **kwargs)
         callback_generator = saliency_generator(val_folder, **kwargs)
@@ -82,7 +82,7 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_categorizer_generators():
-        kwargs = {"input_shape": input_shape, "batch_size": batch_size, "folders": config[task].get('LABELS')}
+        kwargs = {"input_shape": input_shape, "batch_size": batch_size, "folders": folders, "attributes": attributes}
         train_generator = categorizer_generator(train_folder, **kwargs)
         val_generator = categorizer_generator(val_folder, **kwargs)
         callback_generator = categorizer_generator(val_folder, **kwargs)
@@ -90,7 +90,6 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_regressor_generators():
-        attributes = config[task].get('ATTRIBUTES')
         assert attributes, 'No --ATTRIBUTES were passed'
         kwargs = {"input_shape": input_shape, "batch_size": batch_size}
         train_generator = regressor_generator(train_folder, attributes, **kwargs)
@@ -107,7 +106,7 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
         output_label = config[task].get('OUTPUT_LABEL', 'output')
 
         kwargs = {"input_shape": input_shape, "output_shape": output_shape, "batch_size": batch_size,
-                  "input_label": input_label, "output_label": output_label}
+                  "input_label": input_label, "output_label": output_label, "attributes": attributes}
 
         train_generator = segmenter_generator(train_folder, **kwargs)
         val_generator = segmenter_generator(val_folder, **kwargs)
@@ -118,6 +117,8 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
 
     input_shape = config[task].get('INPUT_SHAPE', default_input_shape)
     output_shape = config[task].get('OUTPUT_SHAPE', input_shape)
+    attributes = config[task].get('ATTRIBUTES')
+    folders = config[task].get('LABELS')
 
     functions = {
         "saliency": get_saliency_generators,
@@ -132,7 +133,7 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
     return functions[task](), config
 
 
-def get_data_augmentation(config, task, train_generator, val_generator, callback_generator):
+def get_data_augmentation(config, task, root, train_generator, val_generator, callback_generator):
     def get_im2im_data_augmentation():
         kwargs = {"noise_function": noise_function, "apply_on_output": True, "zoom_factor": zoom_factor,
                   "rotation": rotation}
@@ -181,7 +182,9 @@ def get_data_augmentation(config, task, train_generator, val_generator, callback
         "gan_segmenter": get_im2im_data_augmentation
     }
     assert task in functions, f'You asked for {task}, but functions.keys is {list(functions.keys())}'
-    return functions[task]()
+    generators = functions[task]()
+
+    return generators
 
 
 def get_models(config, task, name, train_folder, load=False):
@@ -192,15 +195,16 @@ def get_models(config, task, name, train_folder, load=False):
         elif task == "autoencoder":
             model = import_unet_model(name=name, config=config[task], load=load, skip=False)
         else:
-            model = import_unet_model(name=name, config=config[task], load=load,
-                                      metrics=config[task].get('METRICS'), labels=labels)
+            model = import_unet_model(name=name, config=config[task], load=load, metrics=config[task].get('METRICS'),
+                                      labels=labels, additional_input_number=additional_input_number)
         model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
         return model
 
     def get_categorizer_model():
         config[task]['LABELS'] = labels
         if task == 'inceptionV3':
-            model = InceptionV3(config=config[task], name=name, load=load)
+            model = InceptionV3(config=config[task], name=name, load=load,
+                                additional_input_number=additional_input_number)
         return model
 
     def get_regressor_model():
@@ -221,6 +225,7 @@ def get_models(config, task, name, train_folder, load=False):
         model.generator.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
         return model
 
+    additional_input_number = len(config[task].get('ATTRIBUTES', []))
     folders = config[task].get('LABELS')
     path_labels = list_dir(train_folder) if folders is None else [os.path.join(train_folder, folder) for folder in
                                                                   folders[1:-1].split(', ')]
@@ -317,7 +322,7 @@ def main(task, dataset, batch_size=BATCH_SIZE, epochs=EPOCHS,
     train_folder, val_folder = get_dataset_roots(dataset=dataset, root=root)
     (train_generator, val_generator, callback_generator, train_dir), config = get_generators(config, task, batch_size,
                                                                                              train_folder, val_folder)
-    train_generator, val_generator, callback_generator = get_data_augmentation(config, task, train_generator,
+    train_generator, val_generator, callback_generator = get_data_augmentation(config, task, root, train_generator,
                                                                                val_generator, callback_generator)
     name = config[task].get('NAME', f'{dataset}_{task}')
     model = get_models(config, task, name, train_folder, load=initial_epoch != 0)
