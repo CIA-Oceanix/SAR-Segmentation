@@ -1,9 +1,7 @@
-import sys
 import os
-import numpy as np
 
 from keras.models import Model
-from keras.layers import Input, Conv2D, RepeatVector, Reshape, concatenate, Lambda
+from keras.layers import Input, Conv2D, RepeatVector, Reshape, concatenate
 from keras_radam.training import RAdamOptimizer
 import keras.backend as K
 

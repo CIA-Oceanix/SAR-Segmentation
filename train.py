@@ -17,7 +17,7 @@ gpu_options = tf.GPUOptions(allow_growth=True)
 sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 keras.backend.tensorflow_backend.set_session(sess)
 
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, EarlyStopping
 
 from Rignak_DeepLearning.data import get_dataset_roots
 from Rignak_DeepLearning.noise import get_composition
@@ -196,7 +196,7 @@ def get_models(config, task, name, train_folder, load=False):
             model = import_unet_model(name=name, config=config[task], load=load, skip=False)
         else:
             model = import_unet_model(name=name, config=config[task], load=load, metrics=config[task].get('METRICS'),
-                                      labels=labels, additional_input_number=additional_input_number)
+                                      labels=labels, additional_input_number=len(attributes))
         model.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
         return model
 
@@ -204,20 +204,13 @@ def get_models(config, task, name, train_folder, load=False):
         config[task]['LABELS'] = labels
         if task == 'inceptionV3':
             model = InceptionV3(config=config[task], name=name, load=load,
-                                additional_input_number=additional_input_number)
+                                additional_input_number=len(attributes))
         return model
 
     def get_regressor_model():
-        attributes = config[task].get('ATTRIBUTES')
-        if isinstance(attributes, str):
-            while ' ' in attributes:
-                attributes = attributes.replace(' ', '')
-            if attributes.startswith('(') and attributes.endswith(')'):
-                attributes = attributes[1:-1]
-            attributes = attributes.split(',')
 
         config[task]['LABELS'] = attributes
-        model = InceptionV3(config=config[task], name=name, load=load, last_dense=True)
+        model = InceptionV3(config=config[task], name=name, load=load)
         return model
 
     def get_gan_model():
@@ -225,7 +218,13 @@ def get_models(config, task, name, train_folder, load=False):
         model.generator.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
         return model
 
-    additional_input_number = len(config[task].get('ATTRIBUTES', []))
+    attributes = config[task].get('ATTRIBUTES', [])
+    if isinstance(attributes, str):
+        while ' ' in attributes:
+            attributes = attributes.replace(' ', '')
+        if attributes.startswith('(') and attributes.endswith(')'):
+            attributes = attributes[1:-1]
+        attributes = attributes.split(',')
     folders = config[task].get('LABELS')
     path_labels = list_dir(train_folder) if folders is None else [os.path.join(train_folder, folder) for folder in
                                                                   folders[1:-1].split(', ')]
@@ -250,7 +249,8 @@ def get_callbacks(config, task, model, callback_generator):
             SaveAttributes(callback_generator, config[task]),
             ModelCheckpoint(model.weight_filename, save_best_only=True),
             HistoryCallback(batch_size, training_steps),
-            AutoencoderExampleCallback(callback_generator)
+            AutoencoderExampleCallback(callback_generator),
+            EarlyStopping(patience=10)
         ]
         return callbacks
 
@@ -261,7 +261,8 @@ def get_callbacks(config, task, model, callback_generator):
             # ModelCheckpoint(model.weight_filename + ".{epoch:02d}.h5", save_best_only=True),
             HistoryCallback(batch_size, training_steps),
             ConfusionCallback(callback_generator, model.labels),
-            ClassificationExampleCallback(callback_generator)
+            ClassificationExampleCallback(callback_generator),
+            EarlyStopping(patience=10)
         ]
         return callbacks
 
@@ -271,7 +272,8 @@ def get_callbacks(config, task, model, callback_generator):
             ModelCheckpoint(model.weight_filename, save_best_only=False),
             HistoryCallback(batch_size, training_steps),
             RegressorCallback(callback_generator, validation_steps, config[task]['ATTRIBUTES'],
-                              config[task]['VAL_MEANS'], config[task]['VAL_STDS'])
+                              config[task]['VAL_MEANS'], config[task]['VAL_STDS']),
+            EarlyStopping(patience=100)
         ]
         return callbacks
 
@@ -280,7 +282,8 @@ def get_callbacks(config, task, model, callback_generator):
             SaveAttributes(callback_generator, config[task]),
             ModelCheckpoint(model.weight_filename, save_best_only=True),
             HistoryCallback(batch_size, training_steps),
-            AutoencoderExampleCallback(callback_generator)
+            AutoencoderExampleCallback(callback_generator),
+            EarlyStopping(patience=10)
         ]
         return callbacks
 

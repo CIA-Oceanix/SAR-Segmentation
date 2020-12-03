@@ -73,7 +73,7 @@ class Yes_UGAN():
 
         self.adversarial_autoencoder = Model(input_layer, [generator_prediction, discriminator_prediction],
                                              name=name)
-        self.loss_weights = [1., 0.00001]
+        self.loss_weights = [1., 1.]
         self.adversarial_autoencoder.compile(loss=[self.generator_loss, self.discriminator_loss],
                                              loss_weights=self.loss_weights, optimizer=RAdamOptimizer(learning_rate))
         self.name = name

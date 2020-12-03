@@ -61,22 +61,23 @@ def plot_regressor_distribution(examples, truths, predictions, attributes, means
     for i, attribute in enumerate(attributes):
         mean = means[i]
         std = stds[i]
+        
         plt.subplot(3, len(attributes) + 1, i + 2)
+        
         plt.hist(predictions[:, i] * std + mean, bins=20, range=(-std + mean, std + mean), density=True)
         plt.title(attribute)
         if not i:
             plt.ylabel('Predictions')
 
         plt.subplot(3, len(attributes) + 1, i + 2 + len(attributes) + 1)
-        plt.hist(truths[:, i] * std + mean, bins=20, density=True)
+        plt.hist(truths[:, i] * std + mean, bins=20, range=(-std + mean, std + mean), density=True)
         if not i:
             plt.ylabel('Truth')
 
         plt.subplot(3, len(attributes) + 1, i + 2 + 2 * (len(attributes) + 1))
         plt.hist(abs(truths[:, i] - predictions[:, i]), bins=20, range=(0, 2), density=True)
-        plt.ylim(0, 1)
         if not i:
-            plt.ylabel('Absolute Error')
+            plt.ylabel('Normalized Absolute Error')
 
 
 def plot_regressor(examples, truths, predictions, attributes, means, stds):

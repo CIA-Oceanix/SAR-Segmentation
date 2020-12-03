@@ -7,15 +7,19 @@ CLASS_WEIGHTS = None
 for arg in sys.argv:
     if arg.startswith('--CLASS_WEIGHTS'):
         CLASS_WEIGHTS = np.array(eval(arg.split('=')[-1]), dtype=float)
-        CLASS_WEIGHTS = CLASS_WEIGHTS / sum(CLASS_WEIGHTS) * len(CLASS_WEIGHTS)
+        CLASS_WEIGHTS = CLASS_WEIGHTS / sum(CLASS_WEIGHTS)  * len(CLASS_WEIGHTS)
 
 
 def weighted_binary_crossentropy(y_true, y_pred, smooth=0.01, class_weights=CLASS_WEIGHTS):
     size = K.sum(y_pred) + K.sum(1 - y_pred)
     weights = 1 - (K.sum(y_true) / size)
-    loss = - weights * y_true * K.log(y_pred + smooth) - (1 - weights) * (1 - y_true) * K.log(1 - y_pred + smooth)
-    if CLASS_WEIGHTS is not None:
-        loss = loss * K.variable(class_weights)
+
+    positive_loss = - weights * y_true * K.log(y_pred + smooth)
+    negative_loss = - (1 - weights) * (1 - y_true) * K.log(1 - y_pred + smooth)
+    loss = positive_loss + negative_loss
+    if class_weights is not None:
+        class_weights = K.variable(class_weights)
+        loss = class_weights * loss
     return loss
 
 

@@ -22,7 +22,7 @@ CONFIG = get_config()[CONFIG_KEY]
 DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 
-def build_inception_v3(input_shape, activation, last_activation, last_dense, labels):
+def build_inception_v3(input_shape, activation, last_activation, labels, last_dense=True):
     input_layer = Input(shape=input_shape)
     img_conc = concatenate([input_layer, input_layer, input_layer]) if input_shape[-1] == 1 else input_layer
     base_model = InceptionV3(input_tensor=img_conc, classes=1, include_top=False, activation=activation)
@@ -36,7 +36,7 @@ def build_inception_v3(input_shape, activation, last_activation, last_dense, lab
     return model
 
 
-def build_multi_input_inception_v3(input_shape, activation, last_activation, last_dense, labels,
+def build_multi_input_inception_v3(input_shape, activation, last_activation, labels,
                                    additional_input_number):
     input_layer = Input(shape=input_shape)
     img_conc = concatenate([input_layer, input_layer, input_layer]) if input_shape[-1] == 1 else input_layer
@@ -48,15 +48,14 @@ def build_multi_input_inception_v3(input_shape, activation, last_activation, las
     additional_inputs = Input(shape=(additional_input_number,))
     x = concatenate([x, additional_inputs])
 
-    if last_dense:
-        x = Dense(128, activation='relu')(x)
+    x = Dense(128, activation=activation)(x)
     x = Dense(len(labels), activation=last_activation)(x)
     model = Model([input_layer, additional_inputs], outputs=x)
     return model
 
 
 def import_model_v3(config=CONFIG, name=DEFAULT_NAME, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT,
-                    load=LOAD, last_dense=False, additional_input_number=0):
+                    load=LOAD, additional_input_number=0):
     input_shape = config.get('INPUT_SHAPE')
     labels = config.get('LABELS')
     activation = config.get('ACTIVATION', 'relu')
@@ -67,10 +66,10 @@ def import_model_v3(config=CONFIG, name=DEFAULT_NAME, weight_root=WEIGHT_ROOT, s
     metrics = config.get('METRICS', DEFAULT_METRICS)
 
     if additional_input_number:
-        model = build_multi_input_inception_v3(input_shape, activation, last_activation, last_dense, labels,
+        model = build_multi_input_inception_v3(input_shape, activation, last_activation, labels,
                                                additional_input_number)
     else:
-        model = build_inception_v3(input_shape, activation, last_activation, last_dense, labels)
+        model = build_inception_v3(input_shape, activation, last_activation, labels)
 
     optimizer = RAdamOptimizer(learning_rate)
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
