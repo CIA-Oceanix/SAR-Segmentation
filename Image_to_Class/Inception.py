@@ -32,7 +32,7 @@ def build_inception_v3(input_shape, last_activation, labels, name, last_dense=Fa
     img_conc = concatenate([input_layer, input_layer, input_layer]) if input_shape[-1] == 1 else input_layer
 
     get_model = InceptionResNetV2 if resnet else InceptionV3
-    base_model = get_model(input_tensor=img_conc, classes=1, include_top=False, weights=None)
+    base_model = get_model(input_tensor=img_conc, classes=1, include_top=False, weights='imagenet')
 
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
@@ -62,6 +62,7 @@ def build_multi_input_inception_v3(input_shape, last_activation, labels, name,
     x = concatenate([x, additional_inputs])
 
     x = Dense(128, activation='relu')(x)
+    x = Dense(128, activation='relu')(x)
     x = Dense(len(labels), activation=last_activation)(x)
     model = Model([input_layer, additional_inputs], outputs=x, name=name)
     return model
@@ -74,28 +75,30 @@ def import_model_v3(config=CONFIG, name=DEFAULT_NAME, root=ROOT, additional_inpu
     labels = config.get('LABELS')
     last_activation = config.get('LAST_ACTIVATION', 'softmax')
     learning_rate = config.get('LEARNING_RATE', LEARNING_RATE)
+    last_dense=config.get('LAST_DENSE', False)
 
     loss = config.get('LOSS', DEFAULT_LOSS)
     loss = LOSS_TRANSLATION.get(loss, loss)
 
     metrics = config.get('METRICS', DEFAULT_METRICS)
 
+    print('additional_input_number', last_dense)
     if additional_input_number:
         model = build_multi_input_inception_v3(input_shape, last_activation, labels, name,
                                                additional_input_number, resnet=resnet)
     else:
-        model = build_inception_v3(input_shape, last_activation, labels, name, resnet=resnet)
+        model = build_inception_v3(input_shape, last_activation, labels, name, resnet=resnet, 
+                                   last_dense=last_dense)
 
     #optimizer = RAdam(learning_rate)
     optimizer = Adam(learning_rate)
     #optimizer = runai.optimizers.Adam(lr=learning_rate, steps=4)
     
-    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     model.labels = labels
     model.weight_filename = os.path.join(root, name, "model.h5")
     model.summary_filename = os.path.join(root, name, "model.txt")
 
-    if load:
-        load_weights(model, model.weight_filename, freeze)
+    load_weights(model, model.weight_filename, load, freeze)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
     write_summary(model)
     return model

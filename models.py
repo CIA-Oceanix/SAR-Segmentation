@@ -44,14 +44,16 @@ def write_summary(model):
         sys.stdout = old
 
 
-def load_weights(model, weight_filename, freeze):
-    print('load weights')
-    old_model = load_model(weight_filename, compile=False)
-    for layer, old_layer in zip(model.layers, old_model.layers):
-        try:
-            layer.set_weights(old_layer.get_weights())
-        except ValueError as e:
-            print(e)
+def load_weights(model, weight_filename, load, freeze):
+    if load:
+        print('load weights')
+        old_model = load_model(weight_filename, compile=False)
+        for layer, old_layer in zip(model.layers, old_model.layers):
+            try:
+                layer.set_weights(old_layer.get_weights())
+            except ValueError as e:
+                print(e)
     if freeze:
-        for layer in model.layers[:-1]:
-            layer.trainable = False
+        for i in range(len(model.layers)-1):
+            model.layers[i].trainable = False
+    return model

@@ -6,12 +6,12 @@ from keras_radam.training import RAdamOptimizer
 import tensorflow.keras.backend as K
 
 from Rignak_Misc.path import get_local_file
-from Rignak_DeepLearning.models import convolution_block, deconvolution_block, write_summary
+from Rignak_DeepLearning.models import convolution_block, deconvolution_block, write_summary, load_weights
 from Rignak_DeepLearning.config import get_config
 from Rignak_DeepLearning.loss import LOSS_TRANSLATION, get_metrics
 
 ROOT = get_local_file(__file__, os.path.join('..', '_outputs'))
-LEARNING_RATE = 10 ** -4
+LEARNING_RATE = 10 ** -3
 
 CONFIG_KEY = 'segmenter'
 CONFIG = get_config()[CONFIG_KEY]
@@ -123,8 +123,7 @@ def import_model(root=ROOT, learning_rate=LEARNING_RATE,
     model.weight_filename = os.path.join(root, name, "model.h5")
     model.summary_filename = os.path.join(root, name, "model.txt")
         
-    if load:
-        load_weights(model, model.weight_filename, freeze)
+    load_weights(model, model.weight_filename, load, freeze)
     write_summary(model)
 
     write_summary(model)
