@@ -11,6 +11,7 @@ task = sys.argv[1]
 #Rignak_DeepLearning.deprecation_warnings.filter_warnings()
 
 import tensorflow as tf
+#tf.compat.v1.disable_eager_execution()
 import tensorflow.keras as keras
 
 physical_devices = tf.config.list_physical_devices('GPU')
@@ -74,14 +75,14 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
         kwargs = {"input_shape": input_shape, "batch_size": batch_size, "output_shape": output_shape,
                   "folders": folders, "attributes": attributes}
         train_generator = saliency_generator(train_folder, **kwargs)
-        val_generator = saliency_generator(val_folder, **kwargs)
+        val_generator = saliency_generator(val_folder, validation=True, **kwargs)
         callback_generator = saliency_generator(val_folder, **kwargs)
         next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_autoencoder_generators():
         train_generator = autoencoder_generator(train_folder, input_shape=input_shape, batch_size=batch_size)
-        val_generator = autoencoder_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
+        val_generator = autoencoder_generator(val_folder, validation=True, input_shape=input_shape, batch_size=batch_size)
         callback_generator = autoencoder_generator(val_folder, input_shape=input_shape, batch_size=batch_size)
         next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
@@ -89,16 +90,17 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
     def get_categorizer_generators():
         kwargs = {"input_shape": input_shape, "batch_size": batch_size, "folders": folders, "attributes": attributes}
         train_generator = categorizer_generator(train_folder, **kwargs)
-        val_generator = categorizer_generator(val_folder, **kwargs)
+        val_generator = categorizer_generator(val_folder, validation=True, **kwargs)
         callback_generator = categorizer_generator(val_folder, **kwargs)
         next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
 
     def get_regressor_generators():
         assert attributes, 'No --ATTRIBUTES were passed'
-        kwargs = {"input_shape": input_shape, "batch_size": batch_size}
+        kwargs = {"input_shape": input_shape, "batch_size": batch_size, 
+                  "additional_inputs": config[task].get('ADDITIONAL_INPUTS', [])}
         train_generator = regressor_generator(train_folder, attributes, **kwargs)
-        val_generator = regressor_generator(val_folder, attributes, **kwargs)
+        val_generator = regressor_generator(val_folder, attributes, validation=True, **kwargs)
         callback_generator = regressor_generator(val_folder, attributes, **kwargs)
 
         config[task]['MEANS'], config[task]['STDS'] = next(train_generator)
@@ -109,7 +111,7 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
     def get_tagger_generators():
         kwargs = {"input_shape": input_shape, "batch_size": batch_size}
         train_generator = tagger_generator(train_folder, **kwargs)
-        val_generator = tagger_generator(val_folder, **kwargs)
+        val_generator = tagger_generator(val_folder, validation=True, **kwargs)
         callback_generator = tagger_generator(val_folder, **kwargs)
 
         config[task]['LABELS'] = next(train_generator)[0]
@@ -124,7 +126,7 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
                   "input_label": input_label, "output_label": output_label, "attributes": attributes}
 
         train_generator = segmenter_generator(train_folder, **kwargs)
-        val_generator = segmenter_generator(val_folder, **kwargs)
+        val_generator = segmenter_generator(val_folder, validation=True, **kwargs)
         callback_generator = segmenter_generator(val_folder, **kwargs)
 
         next(train_generator), next(val_generator), next(callback_generator)
@@ -152,28 +154,22 @@ def get_data_augmentation(config, task, root, train_generator, val_generator, ca
     def get_im2im_data_augmentation():
         kwargs = {"noise_function": noise_function, "apply_on_output": True, "zoom_factor": zoom_factor,
                   "rotation": rotation}
-
         new_train_generator = augment_generator(train_generator, **kwargs)
-        new_val_generator = augment_generator(val_generator, **kwargs)
         new_callback_generator = augment_generator(callback_generator, **kwargs)
-        return new_train_generator, new_val_generator, new_callback_generator
 
         new_train_generator = rotsym_augmentor(new_train_generator)
-        new_val_generator = rotsym_augmentor(new_val_generator)
         new_callback_generator = rotsym_augmentor(new_callback_generator)
 
-        return new_train_generator, new_val_generator, new_callback_generator
+        return new_train_generator, val_generator, new_callback_generator
 
     def get_categorizer_augmentation():
         kwargs = {"noise_function": noise_function, "apply_on_output": False, "zoom_factor": zoom_factor,
                   "rotation": rotation}
-        #return train_generator, val_generator, callback_generator
 
         new_train_generator = augment_generator(train_generator, **kwargs)
-        new_val_generator = augment_generator(val_generator, **kwargs)
         new_callback_generator = augment_generator(callback_generator, **kwargs)
 
-        return new_train_generator, new_val_generator, new_callback_generator
+        return new_train_generator, val_generator, new_callback_generator
 
     noise_function = get_composition(config[task].get('NOISE', [None]), config[task].get('NOISE_PARAMETERS', (())))
     zoom_factor = config[task].get('ZOOM', 0)
@@ -214,7 +210,8 @@ def get_models(config, task, name, train_folder):
 
     def get_regressor_model():
         config[task]['LABELS'] = attributes
-        model = InceptionV3(config=config[task], name=name)
+        model = InceptionV3(config=config[task], name=name,
+                            additional_input_number=len(config[task].get('ADDITIONAL_INPUTS', [])))
         return model
 
     def get_gan_model():
@@ -253,17 +250,17 @@ def get_callbacks(config, task, model, callback_generator):
     def get_im2im_callbacks():
         callbacks = [
             SaveAttributes(callback_generator, config[task]),
-            ModelCheckpoint(model.weight_filename, save_best_only=True),
+            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=True),
             HistoryCallback(batch_size, training_steps),
             AutoencoderExampleCallback(callback_generator),
-            EarlyStopping(patience=10)
+            EarlyStopping(patience=100)
         ]
         return callbacks
 
     def get_categorizer_callbacks():
         callbacks = [
             SaveAttributes(callback_generator, config[task], labels=model.labels),
-            ModelCheckpoint(model.weight_filename, save_best_only=True),
+            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=True),
             # ModelCheckpoint(model.weight_filename + ".{epoch:02d}.h5", save_best_only=True),
             HistoryCallback(batch_size, training_steps),
             ConfusionCallback(callback_generator, model.labels),
@@ -275,7 +272,7 @@ def get_callbacks(config, task, model, callback_generator):
     def get_regressor_callbacks():
         callbacks = [
             SaveAttributes(callback_generator, config[task]),
-            ModelCheckpoint(model.weight_filename, save_best_only=False),
+            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=True),
             HistoryCallback(batch_size, training_steps),
             RegressorCallback(callback_generator, validation_steps, config[task]['ATTRIBUTES'],
                               config[task]['VAL_MEANS'], config[task]['VAL_STDS']),
@@ -286,17 +283,17 @@ def get_callbacks(config, task, model, callback_generator):
     def get_tagger_callbacks():
         callbacks = [
             SaveAttributes(callback_generator, config[task]),
-            ModelCheckpoint(model.weight_filename, save_best_only=False),
             HistoryCallback(batch_size, training_steps),
             TaggerCallback(callback_generator, validation_steps, config[task]['LABELS']),
-            EarlyStopping(patience=20)
+            EarlyStopping(patience=20),
+            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=True)
         ]
         return callbacks
 
     def get_gan_callbacks():
         callbacks = [
             SaveAttributes(callback_generator, config[task]),
-            ModelCheckpoint(model.weight_filename, save_best_only=True),
+            #ModelCheckpoint(model.weight_filename, save_best_only=True),
             HistoryCallback(batch_size, training_steps),
             AutoencoderExampleCallback(callback_generator),
             EarlyStopping(patience=10)

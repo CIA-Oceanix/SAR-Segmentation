@@ -2,7 +2,7 @@ import os
 
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Conv2D, RepeatVector, Reshape, concatenate, AveragePooling2D
-from keras_radam.training import RAdamOptimizer
+from tensorflow.keras.optimizers import Adam
 import tensorflow.keras.backend as K
 
 from Rignak_Misc.path import get_local_file
@@ -11,7 +11,7 @@ from Rignak_DeepLearning.config import get_config
 from Rignak_DeepLearning.loss import LOSS_TRANSLATION, get_metrics
 
 ROOT = get_local_file(__file__, os.path.join('..', '_outputs'))
-LEARNING_RATE = 10 ** -3
+LEARNING_RATE = 10 ** -5
 
 CONFIG_KEY = 'segmenter'
 CONFIG = get_config()[CONFIG_KEY]
@@ -94,6 +94,7 @@ def import_model(root=ROOT, learning_rate=LEARNING_RATE,
     batch_normalization = config.get('BATCH_NORMALIZATION', False)
     input_shape = config.get('INPUT_SHAPE', (512, 512, 3))
     output_shape = config.get('OUTPUT_SHAPE', input_shape)
+    skip = config.get('SKIP', skip)
     resnet = config.get('RESNET', False)
 
     activation = config.get('ACTIVATION', 'relu')
@@ -109,7 +110,7 @@ def import_model(root=ROOT, learning_rate=LEARNING_RATE,
     if labels is not None and len(labels) != output_shape[-1]:
         labels = [f'class_{i}' for i in range(output_shape[-1])]
 
-    optimizer = RAdamOptimizer(learning_rate)
+    optimizer = Adam(learning_rate=learning_rate)
     metrics = get_additional_metrics(metrics, loss, labels)
 
     if additional_input_number:
@@ -118,13 +119,11 @@ def import_model(root=ROOT, learning_rate=LEARNING_RATE,
     else:
         model = build_unet(input_shape, activation, batch_normalization, conv_layers, skip, last_activation,
                            output_shape, central_shape, resnet, name)
-    model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
+    model.compile(optimizer=optimizer, loss=loss, metrics=metrics, run_eagerly=True)
 
     model.weight_filename = os.path.join(root, name, "model.h5")
     model.summary_filename = os.path.join(root, name, "model.txt")
         
     load_weights(model, model.weight_filename, load, freeze)
-    write_summary(model)
-
     write_summary(model)
     return model

@@ -20,7 +20,7 @@ def plot_less_than_three_canals(input_, prediction, groundtruth, labels):
             plt.title(labels[0])
 
         plt.subplot(line_number, col_number, i + 1 + col_number)
-        imshow(prediction[i], vmin=0, vmax=groundtruth.max(), cmap='hot')
+        imshow(prediction[i], vmin=0, vmax=groundtruth.max(), cmap='hot', threshold = 'auto')
         plt.title(f'{prediction[i].max()}')
         if not i and labels is not None:
             plt.title(labels[1])
@@ -30,8 +30,7 @@ def plot_less_than_three_canals(input_, prediction, groundtruth, labels):
             imshow(groundtruth[i], vmin=0, vmax=groundtruth.max(), cmap='hot')
             plt.title(f'{groundtruth[i].max()}')
             if not i and labels is not None:
-                plt.title(labels[2])
-
+                plt.title(labels[2]) 
 
 def plot_more_than_three_canals(input_, prediction, groundtruth, labels):
     plt.figure(figsize=(40, 16))

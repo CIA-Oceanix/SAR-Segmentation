@@ -1,6 +1,7 @@
 import sys
 import numpy as np
 
+import tensorflow as tf
 from tensorflow.keras import backend as K
 from tensorflow.keras.losses import mean_squared_error
 
@@ -14,13 +15,14 @@ for arg in sys.argv:
 
 def weighted_binary_crossentropy(y_true, y_pred, smooth=0.01, class_weights=CLASS_WEIGHTS):
     size = K.sum(y_pred) + K.sum(1 - y_pred)
-    weights = 1 - (K.sum(y_true) / size)
+    weights = 1-(K.sum(y_true) / size)
 
-    positive_loss = - weights * y_true * K.log(y_pred + smooth)
-    negative_loss = - (1 - weights) * (1 - y_true) * K.log(1 - y_pred + smooth)
+    positive_loss = - weights * y_true * K.log(K.minimum(y_pred + smooth, 1))
+    negative_loss = - (1 - weights) * (1 - y_true) * K.log(K.minimum(1 - y_pred + smooth, 1))
     loss = positive_loss + negative_loss
     if class_weights is not None:
         loss = class_weights * loss
+    
     return loss
 
 def modulo_mse(y_true, y_pred, m=2):
@@ -32,7 +34,7 @@ def modulo_mse(y_true, y_pred, m=2):
 def weighted_mse(y_true, y_pred, class_weights=CLASS_WEIGHTS):
     loss = (y_true - y_pred) ** 2
     if class_weights is not None:
-        class_weights = K.variable(class_weights)
+        #class_weights = class_weights
         loss = class_weights * loss
     return loss
 

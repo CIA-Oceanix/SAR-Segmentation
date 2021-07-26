@@ -3,6 +3,7 @@ import os
 import glob
 import json
 
+from Rignak_DeepLearning.generator import get_add_additional_inputs
 from Rignak_DeepLearning.data import read
 from Rignak_Misc.path import convert_link
 
@@ -10,7 +11,8 @@ BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
 
 
-def regressor_base_generator(root, attributes, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
+def regressor_base_generator(root, attributes, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE,
+                             additional_inputs=None):
     if isinstance(attributes, str):
         while ' ' in attributes:
             attributes = attributes.replace(' ', '')
@@ -38,13 +40,14 @@ def regressor_base_generator(root, attributes, batch_size=BATCH_SIZE, input_shap
                 for attribute in attributes]):
             checked_filenames.append(filename)
     filenames = np.array(checked_filenames)
-    print(attributes)
     
     with open(os.path.join(os.path.split(root)[0], 'normalization.json')) as json_file:
         normalization = json.load(json_file)
         means = [normalization[attribute]['mean'] for attribute in attributes]
         stds = [normalization[attribute]['std'] for attribute in attributes]
         
+    add_additional_inputs = get_add_additional_inputs(root, additional_inputs)
+    
     print(f'The attributes were defined for {len(filenames)} files')
     print('MEANS:', means)
     print('STDS:', stds)
@@ -54,6 +57,7 @@ def regressor_base_generator(root, attributes, batch_size=BATCH_SIZE, input_shap
 
         batch_filenames = filenames[filenames_index]
         batch_input = np.array([read(filename, input_shape) for filename in batch_filenames])
+        batch_input = add_additional_inputs(batch_input, batch_filenames)
         batch_output = np.array([[data[os.path.split(filename)[-1]][attribute]
                                   for attribute in attributes]
                                  for filename in batch_filenames])

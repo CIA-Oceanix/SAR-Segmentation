@@ -14,20 +14,29 @@ INPUT_LABEL = "input"
 OUTPUT_LABEL = "output"
 
 
-def autoencoder_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
-    filenames = glob.glob(os.path.join(root, '*', '*.*')) + glob.glob(os.path.join(root, '*.*'))
-
+def autoencoder_base_generator(root, validation=False, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE):
+    filenames = glob.glob(os.path.join(root, '*/*', '*.png')) + \
+                glob.glob(os.path.join(root, '*', '*.png')) + \
+                glob.glob(os.path.join(root, '*.png'))
+    filenames = np.array(filenames)
+    k = 0
+    n_files = len(filenames)
     yield None
     while True:
-        batch_path = np.random.choice(filenames, size=batch_size)
+        if validation:
+            batch_index = [(k+i)%n_files for i in range(batch_size)]
+            k += batch_size
+        else:
+            batch_index = np.random.randint(0, n_files, size=batch_size)
+        batch_path = filenames[batch_index]
         batch_input = np.array([read(path, input_shape) for path in batch_path])
         yield batch_input, batch_input.copy()
 
 
-def segmenter_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE,
+def segmenter_base_generator(root, validation=False, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE,
                              input_label=INPUT_LABEL, output_label=OUTPUT_LABEL, attributes=None):
-    input_filenames = np.array(sorted(glob.glob(os.path.join(root, input_label, '*.*'))))
-    output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.*'))))
+    input_filenames = np.array(sorted(glob.glob(os.path.join(root, input_label, '*.png'))))
+    output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.png'))))
     assert len(input_filenames) == len(output_filenames)
 
     [convert_link(filename) for filename in input_filenames if filename.endswith('.lnk')]
@@ -35,14 +44,20 @@ def segmenter_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAP
 
     add_additional_inputs = get_add_additional_inputs(root, attributes)
 
+    k = 0
+    n_files = len(input_filenames)
     yield None
     while True:
-        batch_index = np.random.randint(0, len(input_filenames), size=batch_size)
+        if validation:
+            batch_index = [(k+i)%n_files for i in range(batch_size)]
+            k += batch_size
+        else:
+            batch_index = np.random.randint(0, n_files, size=batch_size)
         batch_input_path = input_filenames[batch_index]
         batch_input = np.array([read(path, input_shape) for path in batch_input_path])
 
         batch_output_path = output_filenames[batch_index]
-        batch_output = 2*np.array([read(path, output_shape) for path in batch_output_path]) - 1
+        batch_output = np.array([read(path, output_shape) for path in batch_output_path])
 
         batch_input = add_additional_inputs(batch_input, batch_input_path)
         yield batch_input, batch_output

@@ -49,20 +49,22 @@ class HistoryCallback(Callback):
             self.logs[key].append(value)
         validation_logs = {key: value for key, value in self.logs.items()
                            if key not in base_metrics and key.startswith('val_')}
-        cols = 1 if 'accuracy' not in logs and not len(validation_logs) else 2
+        cols = 3 if ('accuracy' in logs or 'val_accuracy' in logs) else 2
         plt.figure(figsize=(6 * cols, 6))
 
-        if 'accuracy' in logs:
+        if 'accuracy' in logs or 'val_accuracy' in logs:
             plt.subplot(1, cols, 2)
-            plt.plot(self.x, self.logs['accuracy'], label="Training")
-            plt.plot(self.x, self.logs['val_accuracy'], label="Validation")
+            if 'accuracy' in logs:
+                plt.plot(self.x, self.logs['accuracy'], label="Training")
+            if 'val_accuracy' in logs:
+                plt.plot(self.x, self.logs['val_accuracy'], label="Validation")
             plt.xlabel('kimgs')
             plt.ylabel('Accuracy')
             plt.ylim(0, 1)
             plt.legend()
 
         if len(validation_logs):
-            plt.subplot(1, cols, 2)
+            plt.subplot(1, cols, cols)
 
             for color, (label, values) in zip(COLORS, validation_logs.items()):
                 plt.plot(self.x, values, label=label, color=color)
@@ -96,11 +98,12 @@ class AutoencoderExampleCallback(Callback):
         self.filename = os.path.join(self.root, self.model.name, 'example.png')
         os.makedirs(os.path.split(self.filename)[0], exist_ok=True)
         os.makedirs(os.path.splitext(self.filename)[0], exist_ok=True)
+        self.on_epoch_end(0)
 
     def on_epoch_end(self, epoch, logs={}):
         #if self.val_loss is not None and logs['val_loss'] > self.val_loss:
         #    return
-        self.val_loss = logs['val_loss']
+        self.val_loss = logs.get('val_loss', 0)
 
         example = [[], [], []]
         while len(example[0]) < 8:

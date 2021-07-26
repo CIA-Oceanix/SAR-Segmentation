@@ -24,7 +24,7 @@ def categorizer_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SH
 
     label_to_filename = {
         folder: [os.path.join(folder, filename)
-                 for filename in os.listdir(folder)]
+                 for filename in os.listdir(folder) if '.png' in filename]
         for folder in folders
     }
 

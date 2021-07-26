@@ -7,7 +7,7 @@ from tqdm import tqdm
 import functools
 import PIL.Image
 
-from keras.preprocessing import image as image_utils
+from tensorflow.keras.preprocessing import image as image_utils
 
 from Rignak_Misc.path import convert_link
 
@@ -35,31 +35,30 @@ def data_on_folder(folder, size, canals=CANALS):
         array[i] = thumbnail(filename, size)
     return array, filenames
 
-
+import datetime
 def read(filename, input_shape=None):
     if filename.endswith('.lnk'):
         filename = convert_link(filename)
     try:
         if os.path.splitext(filename)[-1] == '.npy':
+            npy = True
+            begin = datetime.datetime.now()
             with open(filename, 'rb') as numpy_filename:
                 im = np.load(numpy_filename, allow_pickle=True)
-            npy = True
         else:
+            npy = False
             with PIL.Image.open(filename) as im:
                 im = np.array(im)
                 if im.max()>255:
                     im = im/255
-            npy = False
-        if len(im.shape) == 3 and im.shape[2] == 2:
-            im = np.mean(im, axis=-1)
+                                
         if input_shape is not None and (im.shape[0] != input_shape[0] or im.shape[1] != input_shape[1]):
             im = resize(im, input_shape[:2], anti_aliasing=True)
         if len(im.shape) == 2:
             im = np.expand_dims(im, axis=-1)
-        if im.shape[-1] == 1 and input_shape[-1] == 3:
-            im = im[:, :, [0, 0, 0]]
-        elif im.shape[-1] > 1 and input_shape[-1] == 1:
-            im = np.expand_dims(np.mean(im, axis=-1), axis=-1)
+            
+        if im.shape[-1] == 1 and input_shape[-1] != 1:
+            im = im[:, :, [0 for _ in range(input_shape[-1])]]
         elif im.shape[-1] == 4 and input_shape[-1] == 3:
             im = im[:, :, :3]
         if im.max() > 1 and not npy:
@@ -77,7 +76,7 @@ if '--CACHE=True' in sys.argv:
 
 
     @functools.lru_cache(maxsize=50000)
-    def cached_read(filename, input_shape=None):
+    def cached_read(filename, input_shape=None):  
         return hidden_read(filename, input_shape)
 
 
