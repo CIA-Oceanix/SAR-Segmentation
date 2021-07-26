@@ -1,5 +1,4 @@
 import os
-import sys
 
 os.environ['CUDA_VISIBLE_DEVICES'] = '0'
 import Rignak_DeepLearning.deprecation_warnings
@@ -14,8 +13,7 @@ from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.config import get_config
 from Rignak_DeepLearning.models import convolution_block, deconvolution_block, write_summary
 
-WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
-SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
+ROOT = get_local_file(__file__, os.path.join('..', '_outputs'))
 LOAD = False
 LEARNING_RATE = 10 ** -4
 
@@ -26,7 +24,7 @@ GRADIENT_ACCUMULATION = 4
 DEFAULT_METRICS = ['accuracy']
 
 
-def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
+def import_model(root=ROOT, load=LOAD, learning_rate=LEARNING_RATE,
                  config=CONFIG, name=DEFAULT_NAME, gradient_accumulation=GRADIENT_ACCUMULATION,
                  metrics=DEFAULT_METRICS):
     convs = []
@@ -72,8 +70,8 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     model.name = name
-    model.weight_filename = os.path.join(weight_root, f"{name}.h5")
-    model.summary_filename = os.path.join(summary_root, f"{name}.txt")
+    model.weight_filename = os.path.join(root, name, "model.h5")
+    model.summary_filename = os.path.join(root, name, "model.txt")
     if load:
         print('load weights')
         model.load_weights(model.weight_filename)

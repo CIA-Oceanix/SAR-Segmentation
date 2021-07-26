@@ -36,7 +36,9 @@ def compute_confusion_matrix(model, generator, limit=LIMIT, canals=None):
     return confusion_matrix
 
 
-def plot_confusion_matrix(confusion_matrix, labels=None, clustering=False, figsize=(18, 9), fmt='.2f', ax=None):
+def plot_confusion_matrix(confusion_matrix, labels=None, clustering=False, figsize=(18, 9), fmt='.2f', ax=None,
+                          title=None, cmap='magma', vmax=None,
+                          rotation=30):
     if len(labels) == 2:
         clustering = False
     if clustering:
@@ -46,14 +48,14 @@ def plot_confusion_matrix(confusion_matrix, labels=None, clustering=False, figsi
         plt.figure(figsize=figsize)
         ax = plt.subplot()
 
-    sns.heatmap(confusion_matrix[::-1], annot=True, ax=ax, vmin=0, vmax=1, fmt=fmt)
+    sns.heatmap(confusion_matrix[::-1], annot=True, ax=ax, vmin=0, vmax=1 if vmax is None else vmax, fmt=fmt, cmap=cmap)
 
     # labels, title and ticks
     ax.set_xlabel('Predicted labels')
     ax.set_ylabel('True labels')
-    ax.set_title('Confusion Matrix')
+    ax.set_title(title if title is not None else 'Confusion Matrix')
     if labels is not None:
-        ax.xaxis.set_ticklabels(labels, rotation=30, horizontalalignment='right')
+        ax.xaxis.set_ticklabels(labels, rotation=rotation, horizontalalignment='right')
         ax.yaxis.set_ticklabels(labels[::-1], rotation=0)
 
     # https://stackoverflow.com/questions/56942670/matplotlib-seaborn-first-and-last-row-cut-in-half-of-heatmap-plot

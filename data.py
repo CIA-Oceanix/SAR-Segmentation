@@ -43,24 +43,19 @@ def read(filename, input_shape=None):
         if os.path.splitext(filename)[-1] == '.npy':
             with open(filename, 'rb') as numpy_filename:
                 im = np.load(numpy_filename, allow_pickle=True)
-            npy = False
         else:
             with PIL.Image.open(filename) as im:
-                im = np.array(im)
-            npy = True
+                im = np.array(im) / 255
+                if im.max() > 255:
+                    im = im / 255
         if input_shape is not None and (im.shape[0] != input_shape[0] or im.shape[1] != input_shape[1]):
             im = resize(im, input_shape[:2], anti_aliasing=True)
         if len(im.shape) == 2:
             im = np.expand_dims(im, axis=-1)
         if im.shape[-1] == 1 and input_shape[-1] == 3:
-            im = np.stack((im[:, :, 0],) * input_shape[-1], axis=-1)
+            im = im[:, :, [0, 0, 0]]
         elif im.shape[-1] == 3 and input_shape[-1] == 1:
-            im = np.mean(im, axis=-1)
-            im = np.expand_dims(im, axis=-1)
-        elif im.shape[-1] == 4 and input_shape[-1] == 3:
-            im = im[:, :, :3]
-        if im.max() > 1 and not npy:
-            im = im / 255
+            im = np.expand_dims(np.mean(im, axis=-1), axis=-1)
     except Exception as e:
         print('exists:', os.path.exists(filename))
         print(f"Error {e} when reading {filename}, will return empty image")

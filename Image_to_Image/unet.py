@@ -1,7 +1,7 @@
 import os
 
 from keras.models import Model
-from keras.layers import Input, Conv2D, RepeatVector, Reshape, concatenate
+from keras.layers import Input, Conv2D, RepeatVector, Reshape, concatenate, AveragePooling2D
 from keras_radam.training import RAdamOptimizer
 import keras.backend as K
 
@@ -10,10 +10,9 @@ from Rignak_DeepLearning.models import convolution_block, deconvolution_block, w
 from Rignak_DeepLearning.config import get_config
 from Rignak_DeepLearning.loss import LOSS_TRANSLATION, get_metrics
 
-WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
-SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
+ROOT = get_local_file(__file__, os.path.join('..', '_outputs'))
 LOAD = False
-LEARNING_RATE = 10 ** -4
+LEARNING_RATE = 10 ** -5
 
 CONFIG_KEY = 'segmenter'
 CONFIG = get_config()[CONFIG_KEY]
@@ -28,15 +27,21 @@ def get_additional_metrics(metrics, loss, labels):
     return metrics
 
 
-def build_encoder(input_shape, conv_layers, activation, batch_normalization):
+def build_encoder(input_shape, conv_layers, activation, batch_normalization, resnet):
     convs = []
     input_layer = Input(input_shape)
     block = input_layer
 
     for neurons in conv_layers:
+        if resnet:
+            downscaled_layer = AveragePooling2D(pool_size=(2, 2))(block)
+             
         block, conv = convolution_block(block, neurons, activation=activation, maxpool=True,
                                         batch_normalization=batch_normalization)
         convs.append(conv)
+        if resnet:
+            block = concatenate([block, downscaled_layer], axis=-1)
+            
     return input_layer, block, convs
 
 
@@ -52,8 +57,8 @@ def build_decoder(block, convs, conv_layers, output_shape, activation, last_acti
 
 
 def build_unet(input_shape, activation, batch_normalization, conv_layers, skip, last_activation, output_shape,
-               central_shape):
-    input_layer, block, convs = build_encoder(input_shape, conv_layers, activation, batch_normalization)
+               central_shape, resnet):
+    input_layer, block, convs = build_encoder(input_shape, conv_layers, activation, batch_normalization, resnet)
 
     block, conv = convolution_block(block, central_shape, activation=activation, maxpool=False,
                                     batch_normalization=batch_normalization)
@@ -64,8 +69,8 @@ def build_unet(input_shape, activation, batch_normalization, conv_layers, skip, 
 
 
 def build_multi_input_unet(input_shape, activation, batch_normalization, conv_layers, skip, last_activation,
-                           output_shape, central_shape, additional_input_number):
-    input_layer, block, convs = build_encoder(input_shape, conv_layers, activation, batch_normalization)
+                           output_shape, central_shape, additional_input_number, resnet):
+    input_layer, block, convs = build_encoder(input_shape, conv_layers, activation, batch_normalization, resnet)
 
     block, conv = convolution_block(block, central_shape, activation=activation, maxpool=False,
                                     batch_normalization=batch_normalization)
@@ -80,7 +85,7 @@ def build_multi_input_unet(input_shape, activation, batch_normalization, conv_la
     return model
 
 
-def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
+def import_model(root=ROOT, load=LOAD, learning_rate=LEARNING_RATE,
                  config=CONFIG, name=DEFAULT_NAME, skip=True, metrics=None, labels=None, additional_input_number=0):
     conv_layers = config['CONV_LAYERS']
     central_shape = config.get('CENTRAL_SHAPE', conv_layers[-1] * 2)
@@ -88,11 +93,14 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
     batch_normalization = config.get('BATCH_NORMALIZATION', False)
     input_shape = config.get('INPUT_SHAPE', (512, 512, 3))
     output_shape = config.get('OUTPUT_SHAPE', input_shape)
+    resnet = config.get('RESNET', False)
 
     activation = config.get('ACTIVATION', 'relu')
     if activation == 'sin':
         activation = K.sin
     last_activation = config.get('LAST_ACTIVATION', 'sigmoid')
+    if last_activation == 'sin':
+        last_activation = K.sin
 
     loss = config.get('LOSS', 'mse')
     loss = LOSS_TRANSLATION.get(loss, loss)
@@ -105,15 +113,15 @@ def import_model(weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, 
 
     if additional_input_number:
         model = build_multi_input_unet(input_shape, activation, batch_normalization, conv_layers, skip, last_activation,
-                                       output_shape, central_shape, additional_input_number)
+                                       output_shape, central_shape, additional_input_number, resnet)
     else:
         model = build_unet(input_shape, activation, batch_normalization, conv_layers, skip, last_activation,
-                           output_shape, central_shape)
+                           output_shape, central_shape, resnet)
     model.compile(optimizer=optimizer, loss=loss, metrics=metrics)
 
     model.name = name
-    model.summary_filename = os.path.join(summary_root, f"{name}.txt")
-    model.weight_filename = os.path.join(weight_root, f"{name}.h5")
+    model.weight_filename = os.path.join(root, name, "model.h5")
+    model.summary_filename = os.path.join(root, name, "model.txt")
 
     if load:
         print('load weights')

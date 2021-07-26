@@ -122,5 +122,9 @@
   "gan_segmenter": {
     "TASK": "gan_segmenter",
     "ACTIVATION": "relu"
+  },
+  "siamese": {
+    "TASK": "siamese",
+    "ACTIVATION": "relu"
   }
 }

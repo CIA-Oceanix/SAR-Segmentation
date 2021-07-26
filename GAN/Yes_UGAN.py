@@ -5,18 +5,17 @@ import tqdm
 from keras.models import Model
 from keras.layers import Input, Lambda, concatenate, GlobalAveragePooling2D, Dense, Conv2D
 from keras.applications.inception_v3 import InceptionV3
-from keras.losses import mean_squared_error
+
 from keras_radam.training import RAdamOptimizer
 import keras.backend as K
 
 from Rignak_DeepLearning.Image_to_Image.unet import import_model as import_unet_model
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.config import get_config
-from Rignak_DeepLearning.loss import weighted_binary_crossentropy
+from Rignak_DeepLearning.loss import LOSS_TRANSLATION
 from Rignak_DeepLearning.models import write_summary
 
-WEIGHT_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'models'))
-SUMMARY_ROOT = get_local_file(__file__, os.path.join('..', '_outputs', 'summary'))
+ROOT = get_local_file(__file__, os.path.join('..', '_outputs'))
 LOAD = False
 LEARNING_RATE = 10 ** -4
 
@@ -50,16 +49,13 @@ def import_inception(config, input_layer, learning_rate=LEARNING_RATE):
 
 
 class Yes_UGAN():
-    def __init__(self, weight_root=WEIGHT_ROOT, summary_root=SUMMARY_ROOT, load=LOAD, learning_rate=LEARNING_RATE,
+    def __init__(self, root=ROOT, load=LOAD, learning_rate=LEARNING_RATE,
                  config=CONFIG, name=DEFAULT_NAME, skip=True, metrics=None, labels=None):
-        self.discriminator_loss = mean_squared_error
+        self.discriminator_loss = 'mse'
         self.generator_loss = config.get('LOSS', 'mse')
-        if self.generator_loss == 'mse':
-            self.generator_loss = mean_squared_error
-        elif self.generator_loss == 'WBCE':
-            self.generator_loss = weighted_binary_crossentropy
+        self.generator_loss = LOSS_TRANSLATION.get(self.generator_loss, self.generator_loss)
 
-        self.generator = import_unet_model(weight_root=weight_root, summary_root=summary_root, load=load,
+        self.generator = import_unet_model(root=root, load=load,
                                            learning_rate=learning_rate, config=config, name="unet", skip=skip,
                                            metrics=metrics, labels=labels)
 
@@ -73,12 +69,12 @@ class Yes_UGAN():
 
         self.adversarial_autoencoder = Model(input_layer, [generator_prediction, discriminator_prediction],
                                              name=name)
-        self.loss_weights = [1., 1.]
+        self.loss_weights = [1, 0.001]
         self.adversarial_autoencoder.compile(loss=[self.generator_loss, self.discriminator_loss],
                                              loss_weights=self.loss_weights, optimizer=RAdamOptimizer(learning_rate))
         self.name = name
-        self.weight_filename = os.path.join(weight_root, f"{self.name}.h5")
-        self.summary_filename = os.path.join(summary_root, f"{self.name}.txt")
+        self.weight_filename = os.path.join(root, os.path.split(name)[0], "model.h5")
+        self.summary_filename = os.path.join(root, os.path.split(name)[0], "model.txt")
         self.generator.weight_filename = self.weight_filename
         self.generator.summary_filename = self.summary_filename
         self.generator.name = self.name
@@ -97,7 +93,7 @@ class Yes_UGAN():
             discriminator_input = np.concatenate([generator_prediction, generator_truth], axis=0)
             discriminator_truth = np.concatenate([np.ones(generator_prediction.shape[0]),
                                                   np.zeros(generator_prediction.shape[0])], axis=0)
-            discriminator_truth += np.random.normal(size=discriminator_truth.shape, scale=0.05)
+            # discriminator_truth += np.random.normal(size=discriminator_truth.shape, scale=0.05)
             self.discriminator.train_on_batch([discriminator_input], [discriminator_truth])
 
             # Train the generator
@@ -150,7 +146,8 @@ class Yes_UGAN():
                 validation_discriminator_accuracies.append(validation_discriminator_accuracy)
 
             logs = {
-                "loss": float(np.mean(generator_losses) + np.mean(discriminator_losses)),
+                "loss": float(np.mean(generator_losses) * self.loss_weights[0] +
+                              np.mean(discriminator_losses) * self.loss_weights[1]),
                 "val_loss": float(np.mean(validation_generator_losses) * self.loss_weights[0] +
                                   np.mean(validation_discriminator_losses) * self.loss_weights[1]),
                 # "acc": float(np.mean(discriminator_accuracies)),
