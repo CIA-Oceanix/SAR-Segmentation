@@ -35,8 +35,8 @@ def autoencoder_base_generator(root, validation=False, batch_size=BATCH_SIZE, in
 
 def segmenter_base_generator(root, validation=False, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, output_shape=OUTPUT_SHAPE,
                              input_label=INPUT_LABEL, output_label=OUTPUT_LABEL, attributes=None):
-    input_filenames = np.array(sorted(glob.glob(os.path.join(root, input_label, '*.png'))))
-    output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.png'))))
+    input_filenames = np.array(sorted(glob.glob(os.path.join(root, input_label, '*.*'))))
+    output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.*'))))
     assert len(input_filenames) == len(output_filenames)
 
     [convert_link(filename) for filename in input_filenames if filename.endswith('.lnk')]
