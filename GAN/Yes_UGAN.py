@@ -1,6 +1,7 @@
 import os
 import numpy as np
 import tqdm
+import matplotlib.pyplot as plt
 
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
@@ -8,10 +9,13 @@ import tensorflow as tf
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import Input, Lambda, concatenate, GlobalAveragePooling2D, Dense, Conv2D
 from tensorflow.keras.applications.inception_v3 import InceptionV3
-from tensorflow.keras.applications import MobileNetV3Small
+from tensorflow.keras.applications import ResNet50V2
 from tensorflow.keras.callbacks import ModelCheckpoint
 
-from keras_radam.training import RAdamOptimizer
+from tensorflow.keras import applications
+
+
+from tensorflow.keras.optimizers import Adam
 import tensorflow.keras.backend as K
 
 from Rignak_DeepLearning.Image_to_Image.unet import import_model as import_unet_model
@@ -28,9 +32,11 @@ CONFIG = get_config()[CONFIG_KEY]
 DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
 
-def import_discriminator(config, input_layer, learning_rate=LEARNING_RATE):
-    input_shape = config.get('INPUT_SHAPE')
+def import_discriminator(config, learning_rate=LEARNING_RATE):
+    input_shape = config.get('OUTPUT_SHAPE')
+    input_layer = Input(input_shape)
     input_layer_resize = input_layer
+        
     if input_shape[0] < 75 or input_shape[1] < 75:  # minimal input for InceptionV3
         input_layer_resize = Lambda(lambda x: tf.compat.v1.image.resize_bilinear(x, (75, 75)))(input_layer)
 
@@ -40,8 +46,9 @@ def import_discriminator(config, input_layer, learning_rate=LEARNING_RATE):
         input_layer_tricanals = input_layer_resize
     else:
         input_layer_tricanals = Conv2D(3, (1, 1))(input_layer_resize)
+        
 
-    base_model = InceptionV3(input_tensor=input_layer_tricanals, classes=1, include_top=False, weights='imagenet')
+    base_model = InceptionV3(input_tensor=input_layer_tricanals, classes=1, include_top=False, weights=None)#'imagenet')
     #base_model = MobileNetV3Small(input_tensor=input_layer_tricanals, classes=1, include_top=False)
     x = base_model.output
     x = GlobalAveragePooling2D()(x)
@@ -64,8 +71,8 @@ class Yes_UGAN():
         input_layer = Input(self.generator.input_shape[1:])
         generator_prediction = self.generator(input_layer)
 
-        self.discriminator = import_discriminator(config, input_layer, learning_rate=learning_rate)
-        self.discriminator.compile(loss="mse", optimizer=RAdamOptimizer(learning_rate), metrics=['accuracy', 'mae', 'binary_crossentropy'])
+        self.discriminator = import_discriminator(config, learning_rate=learning_rate)
+        self.discriminator.compile(loss="mse", optimizer=Adam(learning_rate), metrics=['accuracy', 'mae', 'binary_crossentropy'])
         
         self.discriminator.trainable = False
         #for layer in self.discriminator.layers[:-1]: layer.trainable=False
@@ -74,9 +81,9 @@ class Yes_UGAN():
 
         self.adversarial_autoencoder = Model(input_layer, [generator_prediction, discriminator_prediction],
                                              name=self.name)
-        self.loss_weights = [0.999, 0.001]
+        self.loss_weights = [0.99, 0.01]
         self.adversarial_autoencoder.compile(loss=['mse', 'mse'],
-                                             loss_weights=self.loss_weights, optimizer=RAdamOptimizer(learning_rate))
+                                             loss_weights=self.loss_weights, optimizer=Adam(learning_rate))
                                              
         self.weight_filenames = [os.path.join(root, self.name, f"{prefix}.h5") for prefix in 'GDA']
         self.summary_filename = os.path.join(root, self.name, "model.txt")
@@ -96,36 +103,41 @@ class Yes_UGAN():
     def fit(self, x, validation_data, verbose, steps_per_epoch, validation_steps,
                       epochs, callbacks, initial_epoch):
         generator = x
-        batch_size = len(next(x)[0])
-        ones = np.ones((batch_size, 1))
-        zeros = np.zeros((batch_size, 1))
+        
+        first_generator_input = next(x)[0]
+        ones = np.ones((len(first_generator_input), 1))
+        zeros = np.zeros((len(first_generator_input), 1))
         
         def process_batch(generator):
             generator_input, generator_truth = next(generator)
-            generator_input = generator_input.astype('float32')*0
+            generator_input = generator_input.astype('float32')
             generator_truth = generator_truth.astype('float32')
             
-            import matplotlib.pyplot as plt
             # Train the discriminator
             if not batch_i % 4:
                 generator_prediction = self.generator.predict(generator_input)
-                p1 = self.discriminator.predict(generator_input)
-                p2 = self.discriminator.predict(generator_prediction)
-                
-                plt.figure(figsize=(8,4))
-                plt.subplot(1,2,1)
-                plt.imshow(generator_input[0])
-                plt.title(p1[0])
-                plt.subplot(1,2,2)
-                plt.imshow(generator_prediction[0])
-                plt.title(p2[0])
-                
-                error = self.discriminator.train_on_batch(
-                    np.concatenate((generator_prediction, generator_prediction), axis=0), 
-                    np.concatenate((ones, zeros), axis=0), reset_metrics=True)
+                train_error_on_valid = self.discriminator.train_on_batch(generator_input, ones + 0.01*K.random_normal((len(first_generator_input), 1)), reset_metrics=True)
+                train_error_on_fakes = self.discriminator.train_on_batch(generator_prediction, zeros + 0.01*K.random_normal((len(first_generator_input), 1)), reset_metrics=True)
+                    
 
-                plt.suptitle(error)
-                plt.savefig(f'test/{epoch}-{batch_i}.png')
+            if not batch_i % 128:  # custum callback to check the D
+                callback_filename = os.path.join('_outputs', self.name, 'D', f'{epoch}-{batch_i}.png')
+                os.makedirs(os.path.split(callback_filename)[0], exist_ok=True)
+                
+                first_generator_prediction = self.generator.predict(first_generator_input)
+                p1 = self.discriminator.predict(first_generator_input)
+                p2 = self.discriminator.predict(first_generator_prediction)
+                
+                plt.figure(figsize=(8,14))
+                for k in range(3):
+                    plt.subplot(3,2,k*2+1)
+                    plt.imshow(first_generator_input[k,:,:,0], cmap="gray")
+                    plt.title(p1[k])
+                    plt.subplot(3,2,k*2+2)
+                    plt.imshow(first_generator_prediction[k,:,:,0], cmap="hot")
+                    plt.title(p2[k])
+                plt.suptitle(f"Train Error:\n{train_error_on_valid}\n{train_error_on_fakes}")
+                plt.savefig(callback_filename)
                 plt.close()
                 
 
@@ -154,7 +166,7 @@ class Yes_UGAN():
                     f" E_loss = {np.mean(generator_losses):.4f}"
                 )
                 pbar.update(1)
-
+                
             validation_generator_losses = []
             validation_discriminator_losses = []
             validation_discriminator_accuracies = []
@@ -191,7 +203,6 @@ class Yes_UGAN():
                 callback.model = self.generator
                 callback.on_epoch_end(epoch=epoch, logs=logs)
                  
-            self.generator.save(self.generator.weight_filename)
-            self.discriminator.save(self.discriminator.weight_filename)
+            self.generator.save_weights(self.generator.weight_filename)
+            self.discriminator.save_weights(self.discriminator.weight_filename)
             
-

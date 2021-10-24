@@ -9,7 +9,7 @@ BATCH_SIZE = 8
 INPUT_SHAPE = (256, 256, 3)
 
 
-def categorizer_base_generator(root, batch_size=BATCH_SIZE, input_shape=INPUT_SHAPE, folders=None, attributes=None):
+def categorizer_base_generator(root, batch_size=BATCH_SIZE, validation=False, input_shape=INPUT_SHAPE, folders=None, attributes=None):
     if not os.path.exists(root) and os.path.exists(root + '.lnk'):
         root = convert_link(root +'.lnk')
     folders = list_dir(root) if folders is None else [os.path.join(root, folder) for folder in

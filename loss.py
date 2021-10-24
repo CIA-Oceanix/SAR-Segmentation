@@ -64,8 +64,24 @@ def get_metrics(metric, names):
     return metrics
 
 
+def nexrad_mse(y_true, y_pred):
+    mask = y_true[:, :, :, 3:]
+    
+    y_true = y_true[:, :, :, :3]
+    y_pred = y_pred[:, :, :, :3]
+    
+    loss = (y_true - y_pred) ** 2
+    
+    #positive_loss = y_true * K.log(y_pred + 0.0001)
+    #negative_loss = (1 - y_true) * K.log(1 - y_pred + 0.0001)
+    #loss = -(positive_loss + negative_loss)
+    
+    loss = loss * mask  # loss not computed on the alpha channel
+    return loss
+
 LOSS_TRANSLATION = {'WBCE': weighted_binary_crossentropy,
                     'DICE': dice_coef_loss,
                     "mse": mean_squared_error,
                     "wmse": weighted_mse,
-                    "modulo_mse": modulo_mse}
+                    "modulo_mse": modulo_mse,
+                    "NEXRAD_MSE": nexrad_mse}

@@ -4,6 +4,11 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 for arg in sys.argv:
     if arg.startswith('--run_on_gpu='):
         os.environ['CUDA_VISIBLE_DEVICES'] = arg.split('=')[-1]
+        
+    seed_value = 42
+    if arg.startswith('--seed='):
+        seed_value = int(arg.split('=')[-1])
+     
 task = sys.argv[1]
 
 #import Rignak_DeepLearning.deprecation_warnings
@@ -53,6 +58,11 @@ elif task in ('tagger',):
     from Rignak_DeepLearning.Image_to_Class.Inception import import_model_v3 as InceptionV3
     from Rignak_DeepLearning.Image_to_Tag.generator import tagger_base_generator as tagger_generator
 
+elif task in ("siamese",):
+    from Rignak_DeepLearning.Image_to_Distance.model import import_model as import_siamese_model
+    from Rignak_DeepLearning.Image_to_Distance.generator import image_distance_base_generator, siamese_augment_generator
+    from Rignak_DeepLearning.Image_to_Distance.callbacks import DistanceCallback
+    
 if task in ('gan_autoencoder', 'gan_segmenter'):
     from Rignak_DeepLearning.GAN.Yes_UGAN import Yes_UGAN as import_gan_model
     from Rignak_DeepLearning.Image_to_Image.generator import autoencoder_base_generator as autoencoder_generator
@@ -127,7 +137,17 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
 
         train_generator = segmenter_generator(train_folder, **kwargs)
         val_generator = segmenter_generator(val_folder, validation=True, **kwargs)
-        callback_generator = segmenter_generator(val_folder, **kwargs)
+        callback_generator = segmenter_generator(train_folder, **kwargs)
+
+        next(train_generator), next(val_generator), next(callback_generator)
+        return train_generator, val_generator, callback_generator, train_folder
+
+    def get_siamese_generators():
+        kwargs = {"batch_size": batch_size, "input_shape": input_shape}
+
+        train_generator = image_distance_base_generator(train_folder, **kwargs)
+        val_generator = image_distance_base_generator(val_folder, **kwargs)
+        callback_generator = image_distance_base_generator(val_folder, **kwargs)
 
         next(train_generator), next(val_generator), next(callback_generator)
         return train_generator, val_generator, callback_generator, train_folder
@@ -146,6 +166,7 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
         "tagger": get_tagger_generators,
         "gan_autoencoder": get_autoencoder_generators,
         "gan_segmenter": get_segmenter_generators,
+        "siamese": get_siamese_generators,
     }
     return functions[task](), config
 
@@ -171,6 +192,14 @@ def get_data_augmentation(config, task, root, train_generator, val_generator, ca
 
         return new_train_generator, val_generator, new_callback_generator
 
+    def get_siamese_augmentation():
+        kwargs = {"zoom_factor": zoom_factor, "rotation": rotation}
+
+        new_train_generator = siamese_augment_generator(train_generator, **kwargs)
+        new_val_generator = siamese_augment_generator(val_generator, **kwargs)
+        new_callback_generator = siamese_augment_generator(callback_generator, **kwargs)
+        return new_train_generator, new_val_generator, new_callback_generator
+        
     noise_function = get_composition(config[task].get('NOISE', [None]), config[task].get('NOISE_PARAMETERS', (())))
     zoom_factor = config[task].get('ZOOM', 0)
     rotation = config[task].get('ROTATION', 0)
@@ -183,7 +212,8 @@ def get_data_augmentation(config, task, root, train_generator, val_generator, ca
         "regressor": get_categorizer_augmentation,
         "tagger": get_categorizer_augmentation,
         "gan_autoencoder": get_im2im_data_augmentation,
-        "gan_segmenter": get_im2im_data_augmentation
+        "gan_segmenter": get_im2im_data_augmentation,
+        "siamese": get_siamese_augmentation
     }
     assert task in functions, f'You asked for {task}, but functions.keys is {list(functions.keys())}'
     generators = functions[task]()
@@ -219,6 +249,11 @@ def get_models(config, task, name, train_folder):
         model.generator.callback_titles = ['Input', 'Prediction', 'Truth'] + labels
         return model
 
+    def get_siamese_model():
+        model = import_siamese_model(name=name, config=config[task])
+        model.labels = labels
+        return model
+
     attributes = config[task].get('ATTRIBUTES', [])
     if isinstance(attributes, str):
         while ' ' in attributes:
@@ -240,7 +275,8 @@ def get_models(config, task, name, train_folder):
         "regressor": get_regressor_model,
         "tagger": get_categorizer_model,
         "gan_autoencoder": get_gan_model,
-        "gan_segmenter": get_gan_model
+        "gan_segmenter": get_gan_model,
+        "siamese": get_siamese_model
     }
     assert task in functions, f'You asked for {task}, but functions.keys is {list(functions.keys())}'
     return functions[task]()
@@ -250,7 +286,7 @@ def get_callbacks(config, task, model, callback_generator):
     def get_im2im_callbacks():
         callbacks = [
             SaveAttributes(callback_generator, config[task]),
-            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=True),
+            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=False),
             HistoryCallback(batch_size, training_steps),
             AutoencoderExampleCallback(callback_generator),
             EarlyStopping(patience=100)
@@ -260,7 +296,7 @@ def get_callbacks(config, task, model, callback_generator):
     def get_categorizer_callbacks():
         callbacks = [
             SaveAttributes(callback_generator, config[task], labels=model.labels),
-            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=True),
+            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=False),
             # ModelCheckpoint(model.weight_filename + ".{epoch:02d}.h5", save_best_only=True),
             HistoryCallback(batch_size, training_steps),
             ConfusionCallback(callback_generator, model.labels),
@@ -272,7 +308,7 @@ def get_callbacks(config, task, model, callback_generator):
     def get_regressor_callbacks():
         callbacks = [
             SaveAttributes(callback_generator, config[task]),
-            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=True),
+            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=False),
             HistoryCallback(batch_size, training_steps),
             RegressorCallback(callback_generator, validation_steps, config[task]['ATTRIBUTES'],
                               config[task]['VAL_MEANS'], config[task]['VAL_STDS']),
@@ -286,7 +322,7 @@ def get_callbacks(config, task, model, callback_generator):
             HistoryCallback(batch_size, training_steps),
             TaggerCallback(callback_generator, validation_steps, config[task]['LABELS']),
             EarlyStopping(patience=20),
-            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=True)
+            ModelCheckpoint(model.weight_filename, save_best_only=True, save_weights_only=False)
         ]
         return callbacks
 
@@ -296,6 +332,16 @@ def get_callbacks(config, task, model, callback_generator):
             #ModelCheckpoint(model.weight_filename, save_best_only=True),
             HistoryCallback(batch_size, training_steps),
             AutoencoderExampleCallback(callback_generator),
+            EarlyStopping(patience=10)
+        ]
+        return callbacks
+
+    def get_siamese_callbacks():
+        callbacks = [
+            SaveAttributes(callback_generator, config[task]),
+            ModelCheckpoint(model.weight_filename, save_best_only=True),
+            HistoryCallback(batch_size, training_steps),
+            DistanceCallback(callback_generator, validation_steps, model.labels),
             EarlyStopping(patience=10)
         ]
         return callbacks
@@ -312,7 +358,8 @@ def get_callbacks(config, task, model, callback_generator):
         "regressor": get_regressor_callbacks,
         "tagger": get_tagger_callbacks,
         "gan_autoencoder": get_gan_callbacks,
-        "gan_segmenter": get_gan_callbacks
+        "gan_segmenter": get_gan_callbacks,
+        "siamese": get_siamese_callbacks
     }
     assert task in functions, f'You asked for {task}, but functions.keys is {list(functions.keys())}'
     return functions[task]()

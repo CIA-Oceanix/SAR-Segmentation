@@ -44,15 +44,15 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
                 if batch_output.shape[1] == 2:
                     if batch_output.shape[-1] == 1:
                         batch_output[i, 1, :, :, 0] = cv2.warpAffine(output, output_rotation_matrix,
-                                                                     output_shape[:2][::-1], borderValue=0)
+                                                                     output_shape[:2][::-1], borderValue=border_value)
                     else:
-                        batch_output[i, 1] = cv2.warpAffine(output, output_rotation_matrix, output_shape[:2][::-1], borderValue=0)
+                        batch_output[i, 1] = cv2.warpAffine(output, output_rotation_matrix, output_shape[:2][::-1], borderValue=border_value)
                 else:
                     if batch_output.shape[-1] == 1:
                         batch_output[i, :, :, 0] = cv2.warpAffine(output, output_rotation_matrix,
-                                                                  output_shape[:2][::-1], borderValue=0)
+                                                                  output_shape[:2][::-1], borderValue=border_value)
                     else:
-                        batch_output[i] = cv2.warpAffine(output, output_rotation_matrix, output_shape[:2][::-1], borderValue=0)
+                        batch_output[i] = cv2.warpAffine(output, output_rotation_matrix, output_shape[:2][::-1], borderValue=border_value)
         if noise_function is not None:
             batch_input, batch_output = noise_function(batch_input, batch_output)
         batch_input = [batch_image_input, batch_input[1]] if isinstance(batch_input, list) else batch_image_input

@@ -33,10 +33,14 @@ class HistoryCallback(Callback):
 
         self.metrics = []
         self.val_metrics = []
+        
+        self.weights = [[] for i in range(10)]
+        self.biases = [[] for i in range(10)]
 
     def on_train_begin(self, logs=None):
         self.filename = os.path.join(self.root, self.model.name, 'history.png')
         os.makedirs(os.path.split(self.filename)[0], exist_ok=True)
+        #self.on_epoch_end(-1)
 
     def on_epoch_end(self, epoch, logs={}):
         base_metrics = ('accuracy', 'val_accuracy', 'loss', 'val_loss')
@@ -85,6 +89,26 @@ class HistoryCallback(Callback):
         plt.tight_layout()
         plt.savefig(self.filename)
         plt.close()
+        """
+        weights = self.model.layers[-1].get_weights()
+        print(weights[1].shape)
+        for i in range(10):
+            self.weights[i].append(np.mean(weights[0][:,:,:,i]))
+            self.biases[i].append(weights[1][i])
+            
+        plt.figure(figsize=(16, 8))
+        plt.subplot(121)
+        for i in range(10):
+            plt.plot(self.x, self.weights[i])
+        plt.title('np.mean(self.model.layers[-1].get_weights()[0][:,:,:,i])')
+        plt.subplot(122)
+        for i in range(10):
+            plt.plot(self.x, self.biases[i])
+        plt.title('self.model.layers[-1].get_weights()[1][i]')
+        plt.tight_layout()
+        plt.savefig(self.filename)
+        plt.close()"""
+
 
 
 class AutoencoderExampleCallback(Callback):
