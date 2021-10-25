@@ -39,12 +39,15 @@ from Rignak_DeepLearning.callbacks import \
 from Rignak_DeepLearning.generator import augment_generator, rotsym_augmentor
 from Rignak_DeepLearning.config import get_config
 
-if task in ("saliency", "autoencoder", "segmenter", "flat_autoencoder", "gan_segmenter"):
+if task in ("saliency", "autoencoder", "segmenter", "flat_autoencoder", "gan_segmenter", "transunet", ):
     from Rignak_DeepLearning.Image_to_Image.unet import import_model as import_unet_model
     from Rignak_DeepLearning.Image_to_Image.generator import \
         segmenter_base_generator as segmenter_generator, \
         saliency_base_generator as saliency_generator, \
         autoencoder_base_generator as autoencoder_generator
+        
+elif task in ("transunet", ):
+    from Rignak_Deeplearning.Image_to_Image.unet import import_model as import_unet_model
 
 elif task in ("categorizer", "inceptionV3"):
     from Rignak_DeepLearning.Image_to_Class.Inception import import_model_v3 as InceptionV3
@@ -76,7 +79,8 @@ EPOCHS = 1000
 INITIAL_EPOCH = 0
 
 DEFAULT_INPUT_SHAPE = (256, 256, 3)
-ROOT = 'C:\\Users/Rignak/Documents/datasets'
+#ROOT = 'C:\\Users/Rignak/Documents/datasets'
+ROOT = 'E:\\datasets'
 
 
 def get_generators(config, task, batch_size, train_folder, val_folder,
@@ -161,6 +165,7 @@ def get_generators(config, task, batch_size, train_folder, val_folder,
         "saliency": get_saliency_generators,
         "autoencoder": get_autoencoder_generators,
         "segmenter": get_segmenter_generators,
+        "transunet": get_segmenter_generators,
         "inceptionV3": get_categorizer_generators,
         "regressor": get_regressor_generators,
         "tagger": get_tagger_generators,
@@ -207,6 +212,7 @@ def get_data_augmentation(config, task, root, train_generator, val_generator, ca
     functions = {
         "saliency": get_im2im_data_augmentation,
         "segmenter": get_im2im_data_augmentation,
+        "transunet": get_im2im_data_augmentation,
         "autoencoder": get_im2im_data_augmentation,
         "inceptionV3": get_categorizer_augmentation,
         "regressor": get_categorizer_augmentation,
@@ -271,6 +277,7 @@ def get_models(config, task, name, train_folder):
         "saliency": get_autoencoder_model,
         "autoencoder": get_autoencoder_model,
         "segmenter": get_autoencoder_model,
+        "transunet": get_autoencoder_model,
         "inceptionV3": get_categorizer_model,
         "regressor": get_regressor_model,
         "tagger": get_categorizer_model,
@@ -354,6 +361,7 @@ def get_callbacks(config, task, model, callback_generator):
         "saliency": get_im2im_callbacks,
         "autoencoder": get_im2im_callbacks,
         "segmenter": get_im2im_callbacks,
+        "transunet": get_im2im_callbacks,
         "inceptionV3": get_categorizer_callbacks,
         "regressor": get_regressor_callbacks,
         "tagger": get_tagger_callbacks,
