@@ -53,7 +53,7 @@ class HistoryCallback(Callback):
             self.logs[key].append(value)
         validation_logs = {key: value for key, value in self.logs.items()
                            if key not in base_metrics and key.startswith('val_')}
-        cols = 3 if ('accuracy' in logs or 'val_accuracy' in logs) else 2
+        cols = 2 if ('accuracy' in logs or 'val_accuracy' in logs) else 1
         plt.figure(figsize=(6 * cols, 6))
 
         if 'accuracy' in logs or 'val_accuracy' in logs:
@@ -156,11 +156,12 @@ class ClassificationExampleCallback(Callback):
         self.filename = os.path.join(self.root, self.model.name, 'example.png')
         os.makedirs(os.path.split(self.filename)[0], exist_ok=True)
         os.makedirs(os.path.splitext(self.filename)[0], exist_ok=True)
+        self.on_epoch_end(0)
 
     def on_epoch_end(self, epoch, logs={}):
-        if self.val_loss is not None and logs['val_loss'] > self.val_loss:
-            return
-        self.val_loss = logs['val_loss']
+        #if self.val_loss is not None and logs['val_loss'] > self.val_loss:
+        #    return
+        #self.val_loss = logs['val_loss']
 
         example = [[], [], []]
         while len(example[0]) < 8:

@@ -13,7 +13,7 @@ import tensorflow.keras.backend as K
 
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.config import get_config
-from Rignak_DeepLearning.models import write_summary, load_weights
+from Rignak_DeepLearning.models import write_summary, load_weights, flatten_model
 from Rignak_DeepLearning.loss import LOSS_TRANSLATION
 
 ROOT = get_local_file(__file__, os.path.join('..', '_outputs'))
@@ -71,7 +71,16 @@ def build_multi_input_inception_v3(input_shape, last_activation, labels, name,
 def import_model_v3(config=CONFIG, name=DEFAULT_NAME, root=ROOT, additional_input_number=0, resnet=False):
     load = config.get('LOAD', False)
     freeze = config.get('FREEZE', False)
-    input_shape = config.get('INPUT_SHAPE')
+    input_shape = list(config.get('INPUT_SHAPE'))
+    
+    flatten_axis = None
+    if input_shape[1] == 1: 
+        flatten_axis = 1
+        input_shape[1] = input_shape[0]
+    if input_shape[0] == 1: 
+        flatten_axis = 0
+        input_shape[0] = input_shape[1]
+    
     labels = config.get('LABELS')
     last_activation = config.get('LAST_ACTIVATION', 'softmax')
     learning_rate = config.get('LEARNING_RATE', LEARNING_RATE)
@@ -89,6 +98,8 @@ def import_model_v3(config=CONFIG, name=DEFAULT_NAME, root=ROOT, additional_inpu
     else:
         model = build_inception_v3(input_shape, last_activation, labels, name, resnet=resnet, 
                                    last_dense=last_dense)
+    if flatten_axis is not None:
+        model = flatten_model(model, axis=flatten_axis)
 
     #optimizer = RAdam(learning_rate)
     optimizer = Adam(learning_rate)

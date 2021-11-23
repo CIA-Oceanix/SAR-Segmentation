@@ -1,8 +1,9 @@
 import os
 import sys
+import json
 
 from tensorflow.keras.layers import Conv2D, MaxPooling2D, Conv2DTranspose, concatenate, BatchNormalization, Dropout
-from tensorflow.keras.models import load_model
+from tensorflow.keras.models import load_model, model_from_json
  
 KERNEL_SIZE = (3, 3)
 ACTIVATION = 'relu'
@@ -57,3 +58,19 @@ def load_weights(model, weight_filename, load, freeze):
         for i in range(len(model.layers)-1):
             model.layers[i].trainable = False
     return model
+
+
+def flatten_model(model, axis=0):
+    json_model = json.loads(model.to_json())
+
+    for layer in json_model["config"]['layers']:
+        config = layer['config']
+        if "strides" in config: config["strides"][axis] = 1
+        if "kernel_size" in config: config["kernel_size"][axis] = 1
+        if "dilation_rate" in config: config['dilation_rate'][axis] = 1
+        if "padding" in config: config['padding'] = 'same'
+
+    json_model["config"]['layers'][0]['config']['batch_input_shape'][axis+1] = 1
+    json_model["config"]['layers'][0]['config']['batch_input_shape'][3] = 1
+
+    return model_from_json(json.dumps(json_model))
