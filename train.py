@@ -80,7 +80,7 @@ INITIAL_EPOCH = 0
 
 DEFAULT_INPUT_SHAPE = (256, 256, 3)
 ROOT = 'C:\\Users/Rignak/Documents/datasets'
-#ROOT = 'E:\\datasets'
+ROOT = 'E:\\datasets'
 
 
 def get_generators(config, task, batch_size, train_folder, val_folder,

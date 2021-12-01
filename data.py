@@ -49,8 +49,13 @@ def read(filename, input_shape=None):
             npy = False
             with PIL.Image.open(filename) as im:
                 im = np.array(im)
-        if im.max()>1:
-            im = im/255
+        if im.dtype == np.int32:
+            im = im / (2**32-1)
+        elif im.dtype == np.int16:
+            im = im / (2**16-1)
+        elif im.dtype == np.int8:
+            im = im / (2**8-1)
+        if im.max() > 2: im = im/255
                                 
         if input_shape is not None and (im.shape[0] != input_shape[0] or im.shape[1] != input_shape[1]):
             im = resize(im, input_shape[:2], anti_aliasing=True)
@@ -81,7 +86,7 @@ if '--CACHE=True' in sys.argv:
     read = cached_read
 
 
-def get_dataset_roots(dataset='.', root='C:\\Users/Rignak/Documents/datasets'):
+def get_dataset_roots(dataset='.', root='E:\\datasets'):
     train_root = os.path.join(root, dataset, 'train')
     val_root = os.path.join(root, dataset, 'val')
     return train_root, val_root
