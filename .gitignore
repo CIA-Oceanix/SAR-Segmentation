@@ -1,0 +1,11 @@
+.idea
+_jupyter
+__pycache__
+*/__pycache__
+_random
+.ipynb_checkpoints
+_outputs/anime
+_outputs/experimental
+_outputs/NEXRAD_FINAL
+_outputs/NEXRAD3
+_outputs/These
