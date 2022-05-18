@@ -35,8 +35,7 @@ def build_encoder(input_shape, conv_layers, activation, batch_normalization, res
         if resnet:
              downscaled_layer = AveragePooling2D(pool_size=(2, 2))(block)
              
-        block, conv = convolution_block(block, neurons, activation=activation, maxpool=True,
-                                        batch_normalization=batch_normalization)
+        block, conv = convolution_block(block, neurons, activation=activation, maxpool=True, batch_normalization=batch_normalization)
         convs.append(conv)
         if resnet:
             block = concatenate([block, downscaled_layer], axis=-1)

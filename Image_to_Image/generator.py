@@ -39,9 +39,9 @@ def segmenter_base_generator(root, validation=False, batch_size=BATCH_SIZE, inpu
     output_filenames = np.array(sorted(glob.glob(os.path.join(root, output_label, '*.npy'))+glob.glob(os.path.join(root, output_label, '*.png'))))
     assert len(input_filenames) == len(output_filenames), f"{len(input_filenames)} - {len(output_filenames)}"
 
-    input_filenames  = input_filenames[:3200] 
-    output_filenames  = output_filenames[:3200] 
-    [convert_link(filename) for filename in input_filenames[:3200] if filename.endswith('.lnk')]
+    input_filenames  = input_filenames#[:3200] 
+    output_filenames  = output_filenames#[:3200] 
+    [convert_link(filename) for filename in input_filenames if filename.endswith('.lnk')]
     [convert_link(filename) for filename in output_filenames if filename.endswith('.lnk')]
 
     add_additional_inputs = get_add_additional_inputs(root, attributes)
@@ -60,7 +60,7 @@ def segmenter_base_generator(root, validation=False, batch_size=BATCH_SIZE, inpu
 
         batch_output_path = output_filenames[batch_index]
         batch_output = np.array([read(path, output_shape) for path in batch_output_path])
-        batch_output[batch_output > 0 ] = 1
+        #batch_output[batch_output > 0 ] = 1
 
         batch_input = add_additional_inputs(batch_input, batch_input_path)
         yield batch_input, batch_output

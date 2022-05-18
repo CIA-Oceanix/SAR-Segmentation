@@ -49,9 +49,10 @@ def read(filename, input_shape=None):
             npy = False
             with PIL.Image.open(filename) as im:
                 im = np.array(im)
-        if im.max()>1:
-            im = im/255
-                                
+        if im.dtype == np.dtype('uint32'): im = im / (2**16-1)
+        elif im.dtype == np.dtype('uint16'): im = im / (2**16-1)
+        elif im.dtype == np.dtype('uint8'): im = im / (2**8-1)
+        
         if input_shape is not None and (im.shape[0] != input_shape[0] or im.shape[1] != input_shape[1]):
             im = resize(im, input_shape[:2], anti_aliasing=True)
         if len(im.shape) == 2:

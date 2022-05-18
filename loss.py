@@ -78,9 +78,19 @@ def nexrad_mse(y_true, y_pred):
     
     loss = loss * mask  # loss not computed on the alpha channel
     return loss
+    
+def masked_mse(y_true, y_pred):
+	mask = y_true[:,:,:,2]
+	
+	y_pred = y_pred[:,:,:,0]
+	y_true = y_true[:,:,:,0]
+	error = (y_true - y_pred)**2
+	return error * mask * (K.cast(K.prod(mask.shape), tf.float32)/K.sum(mask))
+	
 
 LOSS_TRANSLATION = {'WBCE': weighted_binary_crossentropy,
                     'DICE': dice_coef_loss,
+                    "masked_mse": masked_mse,
                     "mse": mean_squared_error,
                     "wmse": weighted_mse,
                     "modulo_mse": modulo_mse,

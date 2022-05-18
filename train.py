@@ -69,6 +69,7 @@ elif task in ("siamese",):
 if task in ('gan_autoencoder', 'gan_segmenter'):
     from Rignak_DeepLearning.GAN.Yes_UGAN import Yes_UGAN as import_gan_model
     from Rignak_DeepLearning.Image_to_Image.generator import autoencoder_base_generator as autoencoder_generator
+    from Rignak_DeepLearning.GAN.generator import gan_im2im_generator
 
 from Rignak_Misc.path import list_dir
 
@@ -79,8 +80,9 @@ EPOCHS = 1000
 INITIAL_EPOCH = 0
 
 DEFAULT_INPUT_SHAPE = (256, 256, 3)
+
 ROOT = 'C:\\Users/Rignak/Documents/datasets'
-#ROOT = 'E:\\datasets'
+if not os.path.exists(ROOT): ROOT = 'E:\\datasets'
 
 
 def get_generators(config, task, batch_size, train_folder, val_folder,
@@ -187,6 +189,13 @@ def get_data_augmentation(config, task, root, train_generator, val_generator, ca
         #new_callback_generator = rotsym_augmentor(new_callback_generator)
 
         return new_train_generator, val_generator, new_callback_generator
+        
+    def get_im2im_gan_augmentation():
+        new_train_generator, new_val_generator, new_callback_generator = get_im2im_data_augmentation()
+        new_train_generator = gan_im2im_generator(new_train_generator)
+        new_val_generator = gan_im2im_generator(new_val_generator)
+        new_callback_generator = gan_im2im_generator(new_callback_generator)
+        return new_train_generator, new_val_generator, new_callback_generator
 
     def get_categorizer_augmentation():
         kwargs = {"noise_function": noise_function, "apply_on_output": False, "zoom_factor": zoom_factor,
@@ -217,8 +226,8 @@ def get_data_augmentation(config, task, root, train_generator, val_generator, ca
         "inceptionV3": get_categorizer_augmentation,
         "regressor": get_categorizer_augmentation,
         "tagger": get_categorizer_augmentation,
-        "gan_autoencoder": get_im2im_data_augmentation,
-        "gan_segmenter": get_im2im_data_augmentation,
+        "gan_autoencoder": get_im2im_gan_augmentation,
+        "gan_segmenter": get_im2im_gan_augmentation,
         "siamese": get_siamese_augmentation
     }
     assert task in functions, f'You asked for {task}, but functions.keys is {list(functions.keys())}'

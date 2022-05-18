@@ -31,16 +31,9 @@ class HistoryCallback(Callback):
         self.batch_size = batch_size
         self.training_steps = training_steps
 
-        self.metrics = []
-        self.val_metrics = []
-        
-        self.weights = [[] for i in range(10)]
-        self.biases = [[] for i in range(10)]
-
     def on_train_begin(self, logs=None):
         self.filename = os.path.join(self.root, self.model.name, 'history.png')
         os.makedirs(os.path.split(self.filename)[0], exist_ok=True)
-        #self.on_epoch_end(-1)
 
     def on_epoch_end(self, epoch, logs={}):
         base_metrics = ('accuracy', 'val_accuracy', 'loss', 'val_loss')
@@ -48,66 +41,39 @@ class HistoryCallback(Callback):
         self.x.append((epoch + 1) * self.batch_size * self.training_steps / 1000)
 
         for key, value in logs.items():
-            if key not in self.logs:
+            if key not in self.logs: 
                 self.logs[key] = []
             self.logs[key].append(value)
-        validation_logs = {key: value for key, value in self.logs.items()
-                           if key not in base_metrics and key.startswith('val_')}
-        cols = 2 if ('accuracy' in logs or 'val_accuracy' in logs) else 1
+        accuracy_logs = {
+            key:value 
+            for key, value in self.logs.items() 
+            if 'accuracy' in key
+        }
+        
+        cols = 2 if accuracy_logs else 1
         plt.figure(figsize=(6 * cols, 6))
 
-        if 'accuracy' in logs or 'val_accuracy' in logs:
+        if accuracy_logs:
             plt.subplot(1, cols, 2)
-            if 'accuracy' in logs:
-                plt.plot(self.x, self.logs['accuracy'], label="Training")
-            if 'val_accuracy' in logs:
-                plt.plot(self.x, self.logs['val_accuracy'], label="Validation")
+            for key, values in accuracy_logs.items():
+                plt.plot(self.x, values, label=key)
+                
             plt.xlabel('kimgs')
             plt.ylabel('Accuracy')
             plt.ylim(0, 1)
             plt.legend()
-
-        if len(validation_logs):
-            plt.subplot(1, cols, cols)
-
-            for color, (label, values) in zip(COLORS, validation_logs.items()):
-                plt.plot(self.x, values, label=label, color=color)
-            plt.xlabel('kimgs')
-            plt.ylabel('Additional Validation Losses')
-            plt.yscale('log')
-            plt.legend()
-
+        
         plt.subplot(1, cols, 1)
-
-        plt.plot(self.x, self.logs['loss'], label="Training")
-        plt.plot(self.x, self.logs['val_loss'], label="Validation")
+        for key, values in self.logs.items():
+            if key in accuracy_logs: continue
+            plt.plot(self.x, values, label=key)
         plt.xlabel('kimgs')
-        plt.ylabel('Loss')
         plt.yscale('log')
         plt.legend()
 
         plt.tight_layout()
         plt.savefig(self.filename)
         plt.close()
-        """
-        weights = self.model.layers[-1].get_weights()
-        print(weights[1].shape)
-        for i in range(10):
-            self.weights[i].append(np.mean(weights[0][:,:,:,i]))
-            self.biases[i].append(weights[1][i])
-            
-        plt.figure(figsize=(16, 8))
-        plt.subplot(121)
-        for i in range(10):
-            plt.plot(self.x, self.weights[i])
-        plt.title('np.mean(self.model.layers[-1].get_weights()[0][:,:,:,i])')
-        plt.subplot(122)
-        for i in range(10):
-            plt.plot(self.x, self.biases[i])
-        plt.title('self.model.layers[-1].get_weights()[1][i]')
-        plt.tight_layout()
-        plt.savefig(self.filename)
-        plt.close()"""
 
 
 

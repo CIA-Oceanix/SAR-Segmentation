@@ -18,10 +18,11 @@ from tensorflow.keras import applications
 from tensorflow.keras.optimizers import Adam
 import tensorflow.keras.backend as K
 
-from Rignak_DeepLearning.Image_to_Image.unet import import_model as import_unet_model
+from Rignak_DeepLearning.Image_to_Image.unet import import_model as import_unet_model, build_unet
 from Rignak_Misc.path import get_local_file
 from Rignak_DeepLearning.config import get_config
 from Rignak_DeepLearning.models import write_summary
+from Rignak_DeepLearning.loss import LOSS_TRANSLATION
 
 ROOT = get_local_file(__file__, os.path.join('..', '_outputs'))
 LOAD = False
@@ -31,30 +32,21 @@ CONFIG_KEY = 'segmenter'
 CONFIG = get_config()[CONFIG_KEY]
 DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
-
+    
 def import_discriminator(config, learning_rate=LEARNING_RATE):
-    input_shape = config.get('OUTPUT_SHAPE')
-    input_layer = Input(input_shape)
-    input_layer_resize = input_layer
-        
-    if input_shape[0] < 75 or input_shape[1] < 75:  # minimal input for InceptionV3
-        input_layer_resize = Lambda(lambda x: tf.compat.v1.image.resize_bilinear(x, (75, 75)))(input_layer)
-
-    if input_shape[-1] == 1:
-        input_layer_tricanals = concatenate([input_layer_resize, input_layer_resize, input_layer_resize])
-    elif input_shape[-1] == 3:
-        input_layer_tricanals = input_layer_resize
-    else:
-        input_layer_tricanals = Conv2D(3, (1, 1))(input_layer_resize)
-        
-
-    base_model = InceptionV3(input_tensor=input_layer_tricanals, classes=1, include_top=False, weights=None)#'imagenet')
-    #base_model = MobileNetV3Small(input_tensor=input_layer_tricanals, classes=1, include_top=False)
-    x = base_model.output
-    x = GlobalAveragePooling2D()(x)
-    x = Dense(1, activation='sigmoid')(x)
-    discriminator = Model(input_layer, outputs=[x], name="discriminator")
-    discriminator.summary()
+    args = {
+        'input_shape': config['INPUT_SHAPE'], 
+        "activation": 'relu',
+        "batch_normalization": False,
+        "conv_layers": config['CONV_LAYERS'],
+        "skip": True,
+        "last_activation": 'sigmoid',
+        "output_shape": config['INPUT_SHAPE'],
+        "central_shape": config['CONV_LAYERS'][-1],
+        "resnet": False,
+        "name": "discriminator",
+    }
+    discriminator = build_unet(**args)
     return discriminator
 
 
@@ -63,7 +55,11 @@ class Yes_UGAN():
                  config=CONFIG, name=DEFAULT_NAME, skip=True, metrics=None, labels=None):
         self.args = (root, load, learning_rate, config, name, skip, metrics, labels)
         self.name = config.get('NAME')
-
+        
+        self.discriminator = import_discriminator(config, learning_rate=learning_rate)
+        
+        config['INPUT_SHAPE'] = list(config['INPUT_SHAPE'])
+        config['INPUT_SHAPE'][-1] = config['INPUT_SHAPE'][-1] + 1
         self.generator = import_unet_model(root=root,
                                            learning_rate=learning_rate, config=config, name=self.name, skip=skip,
                                            metrics=metrics, labels=labels)
@@ -71,18 +67,15 @@ class Yes_UGAN():
         input_layer = Input(self.generator.input_shape[1:])
         generator_prediction = self.generator(input_layer)
 
-        self.discriminator = import_discriminator(config, learning_rate=learning_rate)
+                                           
         self.discriminator.compile(loss="mse", optimizer=Adam(learning_rate), metrics=['accuracy', 'mae', 'binary_crossentropy'])
-        
         self.discriminator.trainable = False
-        #for layer in self.discriminator.layers[:-1]: layer.trainable=False
         
         discriminator_prediction = self.discriminator(generator_prediction)
 
-        self.adversarial_autoencoder = Model(input_layer, [generator_prediction, discriminator_prediction],
-                                             name=self.name)
-        self.loss_weights = [0.99, 0.01]
-        self.adversarial_autoencoder.compile(loss=['mse', 'mse'],
+        self.adversarial_autoencoder = Model(input_layer, [generator_prediction, discriminator_prediction], name=self.name)
+        self.loss_weights = [5., 1.]
+        self.adversarial_autoencoder.compile(loss=[LOSS_TRANSLATION[config.get('LOSS','mse')], 'mse'],
                                              loss_weights=self.loss_weights, optimizer=Adam(learning_rate))
                                              
         self.weight_filenames = [os.path.join(root, self.name, f"{prefix}.h5") for prefix in 'GDA']
@@ -97,6 +90,8 @@ class Yes_UGAN():
         self.adversarial_autoencoder.summary_filename = self.summary_filename
         write_summary(self.adversarial_autoencoder)
         
+        self.adversarial_autoencoder.summary()
+        
         #self.generator.load_weights(self.generator.weight_filename)
         #self.discriminator.load_weights(self.discriminator.weight_filename)
 
@@ -104,9 +99,12 @@ class Yes_UGAN():
                       epochs, callbacks, initial_epoch):
         generator = x
         
-        first_generator_input = next(x)[0]
-        ones = np.ones((len(first_generator_input), 1))
-        zeros = np.zeros((len(first_generator_input), 1))
+        first_generator_input, first_generator_groundtruth = next(x)
+        batch_size = first_generator_input.shape[0]
+        output_shape = [batch_size] + list(self.discriminator.output_shape[1:-1]) + [1]
+        
+        ones = np.ones(output_shape)
+        zeros = np.zeros(output_shape)
         
         def process_batch(generator):
             generator_input, generator_truth = next(generator)
@@ -116,33 +114,36 @@ class Yes_UGAN():
             # Train the discriminator
             if not batch_i % 4:
                 generator_prediction = self.generator.predict(generator_input)
-                train_error_on_valid = self.discriminator.train_on_batch(generator_input, ones + 0.01*K.random_normal((len(first_generator_input), 1)), reset_metrics=True)
-                train_error_on_fakes = self.discriminator.train_on_batch(generator_prediction, zeros + 0.01*K.random_normal((len(first_generator_input), 1)), reset_metrics=True)
+                train_error_on_valid = self.discriminator.train_on_batch(generator_truth[:,:,:,[0]], ones + 0.01*K.random_normal(output_shape), reset_metrics=True)
+                train_error_on_fakes = self.discriminator.train_on_batch(generator_prediction, zeros + 0.01*K.random_normal(output_shape), reset_metrics=True)
                     
+            # Train the generator
+            generator_loss = self.adversarial_autoencoder.train_on_batch([generator_input],  [generator_truth, ones])
 
             if not batch_i % 128:  # custum callback to check the D
                 callback_filename = os.path.join('_outputs', self.name, 'D', f'{epoch}-{batch_i}.png')
                 os.makedirs(os.path.split(callback_filename)[0], exist_ok=True)
                 
                 first_generator_prediction = self.generator.predict(first_generator_input)
-                p1 = self.discriminator.predict(first_generator_input)
+                p1 = self.discriminator.predict(first_generator_groundtruth[:,:,:,[0]])
                 p2 = self.discriminator.predict(first_generator_prediction)
                 
-                plt.figure(figsize=(8,14))
+                plt.figure(figsize=(16,14))
                 for k in range(3):
-                    plt.subplot(3,2,k*2+1)
+                    plt.subplot(3,4,k*4+1)
                     plt.imshow(first_generator_input[k,:,:,0], cmap="gray")
-                    plt.title(p1[k])
-                    plt.subplot(3,2,k*2+2)
-                    plt.imshow(first_generator_prediction[k,:,:,0], cmap="hot")
-                    plt.title(p2[k])
-                plt.suptitle(f"Train Error:\n{train_error_on_valid}\n{train_error_on_fakes}")
+                    plt.subplot(3,4,k*4+2)
+                    plt.imshow(first_generator_prediction[k,:,:,0], cmap="jet", vmax=1, vmin=0)
+                    plt.subplot(3,4,k*4+3)
+                    plt.imshow(p1[k,:,:,0], cmap="jet", vmax=1, vmin=0)
+                    plt.subplot(3,4,k*4+4)
+                    plt.imshow(p2[k,:,:,0], cmap="jet", vmax=1, vmin=0)
+                #plt.suptitle(f"Train Error:\n{train_error_on_valid}\n{train_error_on_fakes}")
                 plt.savefig(callback_filename)
                 plt.close()
                 
 
             # Train the generator
-            generator_loss = self.adversarial_autoencoder.train_on_batch([generator_input],  [generator_truth, ones])
             return generator_loss
 
         for callback in callbacks:
@@ -174,8 +175,8 @@ class Yes_UGAN():
                 generator_input, generator_truth = next(validation_data)
                 generator_prediction = self.generator.predict_on_batch(generator_input)
 
-                discriminator_input = np.concatenate([generator_prediction, generator_truth], axis=0)
-                discriminator_truth = np.concatenate([ones, zeros], axis=0)
+                discriminator_input = np.concatenate([generator_prediction, generator_truth[:,:,:,[0]]], axis=0)
+                discriminator_truth = np.concatenate([zeros, ones], axis=0)
                 discriminator_prediction = self.discriminator.predict_on_batch(discriminator_input)
                 
                 validation_generator_loss = np.mean((generator_truth - generator_prediction) ** 2)

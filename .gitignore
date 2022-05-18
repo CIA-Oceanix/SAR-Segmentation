@@ -6,6 +6,7 @@ _random
 .ipynb_checkpoints
 _outputs/anime
 _outputs/experimental
-_outputs/NEXRAD_FINAL
 _outputs/NEXRAD3
 _outputs/These
+_outputs/velocity
+_outputs/DEFAULT_MODEL_NAME
