@@ -60,8 +60,9 @@ def read(filename, input_shape=None):
             
         if im.shape[-1] == 1 and input_shape[-1] != 1:
             im = im[:, :, [0 for _ in range(input_shape[-1])]]
-        elif im.shape[-1] == 3 and input_shape[-1] == 1:
-            im = np.mean(im, axis=-1)[:,:,np.newaxis]
+        #elif im.shape[-1] == 3 and input_shape[-1] == 1:
+        #    im = np.mean(im, axis=-1)[:,:,np.newaxis]
+            
     except Exception as e:
         print('exists:', os.path.exists(filename))
         print(f"Error {e} when reading {filename}, will return empty image")

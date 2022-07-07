@@ -12,8 +12,8 @@ INPUT_SHAPE = (256, 256, 3)
 def categorizer_base_generator(root, batch_size=BATCH_SIZE, validation=False, input_shape=INPUT_SHAPE, folders=None, attributes=None):
     if not os.path.exists(root) and os.path.exists(root + '.lnk'):
         root = convert_link(root +'.lnk')
-    folders = list_dir(root) if folders is None else [os.path.join(root, folder) for folder in
-                                                      folders[1:-1].split(', ')]
+    folders = folders[1:-1].split(', ') if isinstance(folders, str) else folders
+    folders = list_dir(root) if folders is None else [os.path.join(root, folder) for folder in folders]
     folders = [convert_link(folder) if folder.endswith('.lnk') else folder for folder in folders]
 
     filename_to_hot_label = {

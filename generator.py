@@ -9,7 +9,7 @@ ZOOM = 0.
 ROTATION = 0
 
 
-def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_function=None, apply_on_output=True, border_value=(1,1,1)):
+def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_function=None, apply_on_output=True, border_value=(0,0,0)):
     while True:
         batch_input, batch_output = next(generator)
         if not zoom_factor and not rotation:
@@ -39,8 +39,7 @@ def augment_generator(generator, zoom_factor=ZOOM, rotation=ROTATION, noise_func
             
             
             if apply_on_output and len(output_shape) != 1:
-                output_rotation_matrix = cv2.getRotationMatrix2D((output_shape[0] // 2, output_shape[1] // 2), angle,
-                                                                 zoom)
+                output_rotation_matrix = cv2.getRotationMatrix2D((output_shape[0] // 2, output_shape[1] // 2), angle, zoom)
                 if batch_output.shape[1] == 2:
                     if batch_output.shape[-1] == 1:
                         batch_output[i, 1, :, :, 0] = cv2.warpAffine(output, output_rotation_matrix,

@@ -15,7 +15,7 @@ from tensorflow.keras.callbacks import ModelCheckpoint
 from tensorflow.keras import applications
 
 
-from tensorflow.keras.optimizers import Adam
+from tensorflow.keras.optimizers import RMSprop
 import tensorflow.keras.backend as K
 
 from Rignak_DeepLearning.Image_to_Image.unet import import_model as import_unet_model, build_unet
@@ -32,6 +32,22 @@ CONFIG_KEY = 'segmenter'
 CONFIG = get_config()[CONFIG_KEY]
 DEFAULT_NAME = CONFIG.get('NAME', 'DEFAULT_MODEL_NAME')
 
+
+def rotsym_augmentor(generator):
+    while True:
+        batch_input, batch_output = next(generator)
+        
+        symmetries = np.random.randint(0, 2, size=(batch_input.shape[0], 2)) * 2 - 1
+        rotations = np.random.randint(0, 4, size=(batch_input.shape[0]))
+        
+        for i, ((vertical_symmetry, horizontal_symmetry), rotation) in enumerate(zip(symmetries, rotations)):
+            batch_input[i] = np.rot90(batch_input[i][::vertical_symmetry, ::horizontal_symmetry], k=rotation)
+            batch_output[i] = np.rot90(batch_output[i][::vertical_symmetry, ::horizontal_symmetry], k=rotation)
+        
+            batch_output[i,:,:,0] = batch_output[i,:,:,0]*horizontal_symmetry - (horizontal_symmetry - 1)/2
+            batch_output[i,:,:,0] = batch_output[i,:,:,0]*vertical_symmetry - (vertical_symmetry - 1)/2
+            batch_output[i,:,:,0] = (batch_output[i,:,:,0] + 0.5*rotation)%1
+        yield batch_input, batch_output
     
 def import_discriminator(config, learning_rate=LEARNING_RATE):
     args = {
@@ -42,7 +58,7 @@ def import_discriminator(config, learning_rate=LEARNING_RATE):
         "skip": True,
         "last_activation": 'sigmoid',
         "output_shape": config['INPUT_SHAPE'],
-        "central_shape": config['CONV_LAYERS'][-1],
+        "central_shape": config['CONV_LAYERS'][-1]*2,
         "resnet": False,
         "name": "discriminator",
     }
@@ -67,16 +83,40 @@ class Yes_UGAN():
         input_layer = Input(self.generator.input_shape[1:])
         generator_prediction = self.generator(input_layer)
 
-                                           
-        self.discriminator.compile(loss="mse", optimizer=Adam(learning_rate), metrics=['accuracy', 'mae', 'binary_crossentropy'])
+        
+        def wasserstein_loss(y_true, y_pred):
+            y_true = 2*y_true - 1
+            return K.mean(y_true * y_pred)
+
+    
+        def masked_mse(y_true, y_pred):
+            mask = y_true[:,:,:,2]
+            
+            y_pred = (y_pred[:,:,:,0]-.5)*np.pi
+            y_true = (y_true[:,:,:,0]-.5)*np.pi
+            error = K.sin(y_pred - y_true)**2
+            return error * mask * (K.cast(K.prod(mask.shape), tf.float32)/K.sum(mask))
+            
+        self.discriminator.compile(
+            loss='mse',
+            optimizer=RMSprop(learning_rate),
+            metrics=['accuracy', 'mae', 'binary_crossentropy']
+        )
         self.discriminator.trainable = False
+        #self.generator.trainable = False
         
         discriminator_prediction = self.discriminator(generator_prediction)
 
         self.adversarial_autoencoder = Model(input_layer, [generator_prediction, discriminator_prediction], name=self.name)
-        self.loss_weights = [5., 1.]
-        self.adversarial_autoencoder.compile(loss=[LOSS_TRANSLATION[config.get('LOSS','mse')], 'mse'],
-                                             loss_weights=self.loss_weights, optimizer=Adam(learning_rate))
+        self.loss_weights = [10., 1.]
+        self.adversarial_autoencoder.compile(
+            loss = [
+                masked_mse,
+                'mse'
+                ],
+            loss_weights=self.loss_weights,
+            optimizer=RMSprop(learning_rate)
+        )
                                              
         self.weight_filenames = [os.path.join(root, self.name, f"{prefix}.h5") for prefix in 'GDA']
         self.summary_filename = os.path.join(root, self.name, "model.txt")
@@ -91,13 +131,16 @@ class Yes_UGAN():
         write_summary(self.adversarial_autoencoder)
         
         self.adversarial_autoencoder.summary()
-        
-        #self.generator.load_weights(self.generator.weight_filename)
-        #self.discriminator.load_weights(self.discriminator.weight_filename)
+
+        if os.path.exists(self.generator.weight_filename):
+            self.generator.load_weights(self.generator.weight_filename)
+        if os.path.exists(self.discriminator.weight_filename):
+            self.discriminator.load_weights(self.discriminator.weight_filename)
 
     def fit(self, x, validation_data, verbose, steps_per_epoch, validation_steps,
                       epochs, callbacks, initial_epoch):
-        generator = x
+        generator = rotsym_augmentor(x)
+        validation_data = rotsym_augmentor(validation_data)
         
         first_generator_input, first_generator_groundtruth = next(x)
         batch_size = first_generator_input.shape[0]
@@ -133,7 +176,7 @@ class Yes_UGAN():
                     plt.subplot(3,4,k*4+1)
                     plt.imshow(first_generator_input[k,:,:,0], cmap="gray")
                     plt.subplot(3,4,k*4+2)
-                    plt.imshow(first_generator_prediction[k,:,:,0], cmap="jet", vmax=1, vmin=0)
+                    plt.imshow(first_generator_prediction[k,:,:,0], cmap="twilight", vmax=1, vmin=0)
                     plt.subplot(3,4,k*4+3)
                     plt.imshow(p1[k,:,:,0], cmap="jet", vmax=1, vmin=0)
                     plt.subplot(3,4,k*4+4)

@@ -1,8 +1,8 @@
 import numpy as np
 import random
 from collections import deque
-import skimage
 from datetime import datetime
+import cv2
 
 from Rignak_DeepLearning.ReinforcementLearning.plot_learning import Plot
 
@@ -10,8 +10,8 @@ ARGS = {
     'final_epsilon': 0.05,
     'ini_epsilon': 1.0,
     'exploration': 50000,
-    'batch_size': 128,
-    'gamma': 0.99,
+    'batch_size': 32,
+    'gamma': 0.01,
     'replay': 20000,
     'observation': 2000,
     'observation_delay': 1000,
@@ -21,15 +21,22 @@ ARGS = {
 
 
 def format_state(state, shape):
-    state = skimage.color.rgb2gray(state)
+    #print(f'{state.max()=}', f'{state.mean()=}', f'{state.min()=}')
+    #state = np.mean(state,axis=-1)
     if shape != state[:2].shape:
-        state = skimage.transform.resize(state, shape)
-    return state[:,:,0]
+        state = cv2.resize(state, shape[:2], interpolation = cv2.INTER_AREA)
+    return state
 
 
 def apply_update_rule(D, batch_size, model, gamma):
     batch = random.sample(D, batch_size)
     previous_state, current_state, action, reward_t, terminal = zip(*batch)
+    #print(f'{previous_state=}')
+    #print(f'{current_state=}')
+    #print(f'{action=}')
+    #print(f'{reward_t=}')
+    #print(f'{terminal=}')
+    
     previous_state = np.concatenate(previous_state)
     current_state = np.concatenate(current_state)
 
@@ -37,7 +44,7 @@ def apply_update_rule(D, batch_size, model, gamma):
 
     Q_sa = model.predict(current_state)
     maxQ_sa = np.max(Q_sa, axis=1)
-    targets[range(batch_size), action] = reward_t + gamma * maxQ_sa * np.invert(terminal)
+    targets[range(batch_size), action] = reward_t + gamma * maxQ_sa #* np.invert(terminal)
     return targets, previous_state, maxQ_sa
 
 
@@ -52,7 +59,6 @@ def train(library, model, shape, command_number, GameState, args=ARGS):
     do_nothing[0] = 1
     state0, reward, terminal = game.turn(do_nothing, fps=None)
     state0 = format_state(state0, shape)
-    state0 = np.stack((state0, state0, state0, state0), axis=2)
     state0 = np.expand_dims(state0, axis=0)
 
 
@@ -72,13 +78,13 @@ def train(library, model, shape, command_number, GameState, args=ARGS):
             action_array = do_nothing.copy()
         else:
             action_array = model.predict(state0)[0]
-            print(action_array)
             history['actions'].append(action_array)
-            action = np.argmax(action_array[1:]) + 1
+            action = np.argmax(action_array)
+            print(action_array, action)
             history['exp'] = [history['exp'][0] + action_array[action], history['exp'][1] + 1]
-            action_array = model.predict(state0)[0]
+            #action_array = model.predict(state0)[0]
+        action_array *= 0
         action_array[action] = 1
-        action_array[~action] = 0
 
         if current_epsilon > args['final_epsilon'] and t > args['observation']:
             current_epsilon -= current_epsilon
@@ -93,8 +99,7 @@ def train(library, model, shape, command_number, GameState, args=ARGS):
 
         state1 = format_state(state1, shape)
         state1 = np.expand_dims(state1, axis=0)
-        state1 = np.expand_dims(state1, axis=-1)
-        state1 = np.append(state1, state0[:, :, :, :3], axis=3)
+        #state1 = np.append(state1, state0[:, :, :, :3], axis=3)
         D.append((state0, state1, action, reward, terminal))
 
         if len(D) > args['replay']:
@@ -102,7 +107,7 @@ def train(library, model, shape, command_number, GameState, args=ARGS):
 
         if t > args['observation'] and t % args['frame_skip'] == 0:
             targets, input_, maxQ_sa = apply_update_rule(D, args['batch_size'], model, args['gamma'])
-            history['loss_mean'] += model.train_on_batch(input_, targets)[0]
+            history['loss_mean'] += model.train_on_batch(input_, targets)
             history['Qsa_maxmean'] += max(maxQ_sa)
 
         if t % args['observation_delay'] == 0 and t > args['observation']:

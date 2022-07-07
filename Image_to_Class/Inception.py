@@ -18,7 +18,7 @@ from Rignak_DeepLearning.loss import LOSS_TRANSLATION
 
 ROOT = get_local_file(__file__, os.path.join('..', '_outputs'))
 
-LEARNING_RATE = 10 ** -4
+LEARNING_RATE = 10 ** -5
 DEFAULT_LOSS = 'categorical_crossentropy'
 DEFAULT_METRICS = ['accuracy']
 
@@ -82,6 +82,7 @@ def import_model_v3(config=CONFIG, name=DEFAULT_NAME, root=ROOT, additional_inpu
         input_shape[0] = input_shape[1]
     
     labels = config.get('LABELS')
+    labels = labels if isinstance(labels, list) else labels[1:-1].split(', ')
     last_activation = config.get('LAST_ACTIVATION', 'softmax')
     learning_rate = config.get('LEARNING_RATE', LEARNING_RATE)
     last_dense=config.get('LAST_DENSE', False)

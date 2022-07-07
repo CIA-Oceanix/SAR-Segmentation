@@ -27,6 +27,7 @@ def get_additional_metrics(metrics, loss, labels):
 
 
 def build_encoder(input_shape, conv_layers, activation, batch_normalization, resnet):
+    print(f"{input_shape=}")
     convs = []
     input_layer = Input(input_shape)
     block = input_layer
@@ -101,7 +102,7 @@ def import_model(root=ROOT, learning_rate=LEARNING_RATE,
         activation = K.sin
     last_activation = config.get('LAST_ACTIVATION', 'sigmoid')
     if last_activation == 'sin':
-        last_activation = K.sin
+        last_activation = lambda x: (K.sin(x)+1)/2
 
     loss = config.get('LOSS', 'mse')
     loss = LOSS_TRANSLATION.get(loss, loss)
